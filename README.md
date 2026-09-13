@@ -12,6 +12,8 @@ adapter and adds a tilt meter from the board's motion sensor.
 - **BLE OBD-II adapter**: OBDLink CX recommended; any ELM327-compatible adapter that
   speaks **Bluetooth LE** should work (the ESP32-S3 can't do classic Bluetooth)
 - USB-C power from the car. The LiPo connector works, but hot cars are hard on LiPos.
+- **Case**: printable two-piece case with a GoPro-style mount in
+  [`tools/case`](tools/case/README.md), for the widened-cover-glass version of the board.
 
 ## Pages
 
