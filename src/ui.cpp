@@ -79,6 +79,19 @@ void setColor(lv_obj_t *l, uint32_t color) {
   lv_obj_set_style_text_color(l, lv_color_hex(color), 0);
 }
 
+// Row of dots along the bottom edge showing which page this is.
+void addPageDots(lv_obj_t *screen, uint8_t index, uint8_t count) {
+  for (uint8_t i = 0; i < count; i++) {
+    lv_obj_t *dot = lv_obj_create(screen);
+    lv_obj_remove_style_all(dot);
+    lv_obj_set_size(dot, 8, 8);
+    lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(dot, lv_color_hex(i == index ? WHITE : 0x424242), 0);
+    lv_obj_align(dot, LV_ALIGN_CENTER, (i - (count - 1) / 2.0f) * 16, 190);
+  }
+}
+
 bool fresh(uint32_t stamp) {
   return stamp && millis() - stamp < 3000;
 }
@@ -206,7 +219,7 @@ void updateTilt(const Tilt &t) {
     setText(p.hint, "Motion sensor not found");
     return;
   }
-  setText(p.hint, t.calibrated ? "" : "Park level, hold BOOT to zero");
+  setText(p.hint, t.calibrated ? "" : "Park level, press and hold to zero");
 
   const int roll = lroundf(t.roll), pitch = lroundf(t.pitch);
   if (roll == p.shownRoll && pitch == p.shownPitch) return;
@@ -254,6 +267,8 @@ void ui_init() {
   gauges[PAGE_INTAKE] = makeGauge(INTAKE);
   gauges[PAGE_VOLTS] = makeGauge(VOLTS);
   makeTilt();
+  for (uint8_t i = 0; i < PAGE_TILT; i++) addPageDots(gauges[i].screen, i, PAGE_COUNT);
+  addPageDots(tiltPage.screen, PAGE_TILT, PAGE_COUNT);
 
   Preferences prefs;
   prefs.begin("gauge", true);
@@ -296,6 +311,10 @@ void ui_update(const Telemetry &t, const Tilt &tilt) {
 
 void ui_nextPage() {
   showPage((page + 1) % PAGE_COUNT);
+}
+
+void ui_prevPage() {
+  showPage((page + PAGE_COUNT - 1) % PAGE_COUNT);
 }
 
 void ui_longPress() {

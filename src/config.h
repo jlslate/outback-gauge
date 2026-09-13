@@ -11,6 +11,12 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 // Set to 1 if the picture is upside down with the board mounted the way you want.
 #define DISPLAY_ROTATE_180 0
 
+// Touch axes relative to the picture. Only swipe direction depends on these;
+// if swiping left goes to the previous page, flip TOUCH_INVERT_X.
+#define TOUCH_SWAP_XY 0
+#define TOUCH_INVERT_X 0
+#define TOUCH_INVERT_Y 0
+
 // Flip these to -1 if the tilt page leans the wrong way.
 #define TILT_ROLL_SIGN 1
 #define TILT_PITCH_SIGN 1

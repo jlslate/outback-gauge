@@ -15,9 +15,12 @@ adapter and adds a tilt meter from the board's motion sensor.
 
 ## Pages
 
-Short-press **BOOT** to cycle pages; the current page is remembered across reboots.
+**Tap** or **swipe left** for the next page, **swipe right** for the previous
+one. The dots along the bottom show where you are, and the current page is
+remembered across reboots. The BOOT button still works as a backup: a short
+press moves to the next page and holding it acts like a long press.
 
-| Page | Source | Hold BOOT |
+| Page | Source | Press and hold |
 |---|---|---|
 | Boost (psi, vacuum below 0) | PID 0x0B manifold pressure minus PID 0x33 baro | Reset peak |
 | Coolant (°F) | PID 0x05 | |
@@ -54,6 +57,15 @@ which BLE service it picked, and battery voltage every 10 s.
 every page to `docs/preview.png`, so layout changes can be checked without
 flashing. Run `pio run` once first so LVGL is downloaded.
 
+## Test gesture detection on a Mac
+
+`src/gesture.h` has no hardware dependencies, so tap, long-press and swipe
+detection can be checked with simulated finger movements:
+
+```bash
+clang++ -std=c++17 -Isrc tools/gesture-test/gesture_test.cpp -o /tmp/gesture_test && /tmp/gesture_test
+```
+
 ## How it works
 
 - `src/display.cpp`: Arduino_GFX drives the SPD2010 over QSPI (pins from
@@ -69,6 +81,10 @@ flashing. Run `pio run` once first so LVGL is downloaded.
 - `src/imu.cpp`: roll and pitch are measured against a saved reference, so the
   mount angle and the chip's orientation on the board don't matter. Assumes an
   upright mount (vent or dash face), not flat on the console.
+- `src/touch.cpp`: SPD2010 touch controller at I2C 0x53, ported from
+  Espressif's `esp_lcd_touch_spd2010`. The controller boots into a BIOS state
+  and each poll walks it toward point-reporting mode, then reads the first
+  finger. `src/gesture.h` turns those reports into taps, long presses and swipes.
 - `src/board.cpp`: power latch (GPIO7), TCA9554 expander for the panel and
   touch resets, backlight PWM (GPIO5), battery ADC (GPIO8, ×3 divider).
 
@@ -76,12 +92,14 @@ flashing. Run `pio run` once first so LVGL is downloaded.
 
 - **Screen orientation**: set `DISPLAY_ROTATE_180` in `src/config.h` if it's upside down.
 - **Tilt direction**: flip `TILT_ROLL_SIGN` / `TILT_PITCH_SIGN` if it leans the wrong way.
+- **Touch**: serial should print `[TOUCH] SPD2010...` at boot. If swiping left goes
+  to the previous page, flip `TOUCH_INVERT_X`; if swipes don't register at all
+  but taps do, try `TOUCH_SWAP_XY`.
 - **OBDLink CX pairing**: assumed to need no PIN or bonding. If it connects
   but never answers, it may need BLE security enabled.
 - **IMU address**: probes 0x6B then 0x6A.
 
 ## Next
 
-- Touch input (the SPD2010 touch controller needs its own driver; BOOT is used for now)
 - Subaru CVT fluid temperature (mode 22 request to the transmission module; the PID needs finding)
 - Overheat alarm on the speaker (PCM5101 over I2S)

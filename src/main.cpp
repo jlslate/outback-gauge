@@ -5,9 +5,20 @@
 #include "display.h"
 #include "imu.h"
 #include "obd.h"
+#include "touch.h"
 #include "ui.h"
 
 namespace {
+
+void handleTouch() {
+  switch (touch_update()) {
+    case TouchEvent::Tap:
+    case TouchEvent::SwipeLeft: ui_nextPage(); break;
+    case TouchEvent::SwipeRight: ui_prevPage(); break;
+    case TouchEvent::LongPress: ui_longPress(); break;
+    case TouchEvent::None: break;
+  }
+}
 
 // BOOT button: short press = next page, hold = page action.
 void pollButton() {
@@ -35,6 +46,7 @@ void setup() {
   board_init();
   display_init();
   imu_init();
+  touch_init();
   ui_init();
   display_refreshNow();  // first frame is drawn before the backlight comes on
   board_setBacklight(BACKLIGHT_PERCENT);
@@ -42,10 +54,14 @@ void setup() {
 }
 
 void loop() {
-  static uint32_t lastImu = 0, lastUi = 0, lastBat = 0;
+  static uint32_t lastImu = 0, lastTouch = 0, lastUi = 0, lastBat = 0;
   const uint32_t now = millis();
 
   pollButton();
+  if (now - lastTouch >= 20) {
+    lastTouch = now;
+    handleTouch();
+  }
   if (now - lastImu >= 20) {
     lastImu = now;
     imu_update();
