@@ -39,7 +39,7 @@ PWR_DEG, BOOT_DEG = 32, -38  # angles seen from the front (0 = 3 o'clock)
 # ---- the case ----------------------------------------------------------------
 LIP = 1.2            # front lip thickness
 LIP_OVERLAP = 1.3    # how far the lip covers the glass edge (all black border)
-FIT = 0.2            # radial clearance around the glass
+FIT = 0.3            # radial clearance around the glass; sized for MJF (±0.3 mm)
 WALL = 2.2
 BACK_CLEAR = 0.8     # behind the header pins
 FOAM = 1.0           # gap between pusher arcs and glass, filled with foam tape

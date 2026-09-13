@@ -11,7 +11,7 @@ different numbers at the top of `case.py`.
 | `stl/case_back_battery.stl` | Back cover with a bay for an 802525 (400 mAh, 8×25×25 mm) LiPo. Case is 27.2 mm deep. |
 | `stl/gopro_mount.stl` | Two-finger GoPro-style mount; fits any GoPro vent, dash or suction mount |
 
-Outside diameter is 53.8 mm. The glass sits behind a 1.3 mm lip that covers
+Outside diameter is 54.0 mm. The glass sits behind a 1.3 mm lip that covers
 only the black border.
 
 ## Printing
@@ -46,7 +46,7 @@ only the black border.
 
 Everything is set by the constants at the top of `case.py`:
 
-- Glass loose or tight in the shell: `FIT` (radial clearance, default 0.2 mm)
+- Glass loose or tight in the shell: `FIT` (radial clearance, default 0.3 mm, sized for MJF nylon; 0.2 suits a well-tuned FDM printer)
 - Board rattles even with foam, or the cover won't close: `FOAM` (default 1.0 mm)
 - USB-C plug won't reach: `USB_OPENING`
 - Button holes don't line up: `PWR_DEG`, `BOOT_DEG`, `BUTTON_Z`
