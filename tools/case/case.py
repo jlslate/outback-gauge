@@ -4,11 +4,12 @@ Writes printable STLs to tools/case/stl/:
   case_front.stl         shell with a front lip that holds the 49 mm glass
   case_back.stl          slim back cover (USB power, no battery)
   case_back_battery.stl  deeper back cover with room for an 802525 LiPo
+  case_back_magnet.stl   slim back cover with pockets for two 12x2 mm magnets
   gopro_mount.stl        two-finger GoPro-style mount, bolts to either back
 
 The board drops into the shell from behind, glass first, until the glass
 meets the lip. Three arcs on the back cover reach forward and press on the
-glass's rear edge (through a strip of 1 mm foam tape, which takes up
+glass's rear edge (through a strip of soft 1/16" foam, which takes up
 tolerance and damps vibration). Three M2x4 screws through the shell wall
 lock the arcs in place.
 
@@ -42,7 +43,7 @@ LIP_OVERLAP = 1.3    # how far the lip covers the glass edge (all black border)
 FIT = 0.3            # radial clearance around the glass; sized for MJF (±0.3 mm)
 WALL = 2.2
 BACK_CLEAR = 0.8     # behind the header pins
-FOAM = 1.0           # gap between pusher arcs and glass, filled with foam tape
+FOAM = 1.0           # gap between pusher arcs and glass, filled with compressed 1.6 mm foam
 FLOOR = 3.0          # back cover thickness (screw heads recess into it)
 BATTERY_BAY = 9.0    # extra depth for an 8 mm thick cell
 EDGE_CHAMFER = 0.8
@@ -64,6 +65,14 @@ USB_OPENING = (12.5, 7.9)   # width, height; fits a typical USB-C plug overmold
 BUTTON_SLOT = (3.5, 4.0)    # tangential width, height (poke with a toothpick)
 
 MOUNT_SCREW_Y = 13.0        # two M3 screws hold the GoPro mount on
+
+# Magnet back: two 12x2 mm discs sit in pockets in the outside face and snap
+# onto a matching pair stuck to the car. Two side by side stop it rotating.
+MAGNET_D, MAGNET_T = 12.0, 2.0
+MAGNET_ADHESIVE = 0.4       # 3M 4920 VHB on the magnets as sold
+MAGNET_X = 10.0             # pocket centers at x = +/-10 (left and right)
+MAGNET_FLOOR = 3.2          # a bit thicker than FLOOR so the pocket keeps 0.7 mm under it
+MAGNET_POCKET = MAGNET_T + MAGNET_ADHESIVE + 0.1
 
 
 # ---- helpers -----------------------------------------------------------------
@@ -124,21 +133,26 @@ def front_shell():
     return shell
 
 
-def back_cover(bay=0.0):
+def back_cover(bay=0.0, magnets=False):
     rim = CUP_LEN
     inner = rim + bay           # inside face of the floor
-    back = inner + FLOOR
+    floor = MAGNET_FLOOR if magnets else FLOOR
+    back = inner + floor
 
-    cover = cyl(FLOOR, R_OUT, inner)
+    cover = cyl(floor, R_OUT, inner)
     if bay:
         cover += cyl(bay, R_OUT, rim) - cyl(bay, ARC_R_OUT, rim)
     for deg, half in ARCS:
         cover += sector(ARC_R_IN, ARC_R_OUT, deg, half, GLASS_BACK + FOAM, inner + 0.01)
         cover -= radial_hole(1.7, deg, LOCK_SCREW_Z, ARC_R_IN - 1)  # M2 self-tapping pilot
 
-    for y in (-MOUNT_SCREW_Y, MOUNT_SCREW_Y):
-        cover -= cyl(FLOOR + 2, 1.65, inner - 1, y=y)
-        cover -= cyl(2.0, 3.1, inner - 0.01, y=y)                   # M3 head sits flush inside
+    if magnets:
+        for x in (-MAGNET_X, MAGNET_X):
+            cover -= cyl(MAGNET_POCKET + 1, MAGNET_D / 2 + 0.15, back - MAGNET_POCKET, x=x)
+    else:
+        for y in (-MOUNT_SCREW_Y, MOUNT_SCREW_Y):
+            cover -= cyl(floor + 2, 1.65, inner - 1, y=y)
+            cover -= cyl(2.0, 3.1, inner - 0.01, y=y)               # M3 head sits flush inside
 
     for deg in (30, 150, 210, 330):                                 # vents, clear of the screws
         cover -= sector(18.5, 20.5, deg, 14, inner - 1, back + 1)
@@ -238,6 +252,7 @@ def main():
         "case_front": front_shell(),
         "case_back": back_cover(),
         "case_back_battery": back_cover(BATTERY_BAY),
+        "case_back_magnet": back_cover(magnets=True),
         "gopro_mount": gopro_mount(),
     }
     print("Fit check against the board outline:")
@@ -251,7 +266,8 @@ def main():
         bb = solid.bounding_box()
         print(f"  wrote {name}.stl  {bb[3]-bb[0]:.1f} x {bb[4]-bb[1]:.1f} x {bb[5]-bb[2]:.1f} mm")
     print(f"Case depth: {CUP_LEN + FLOOR:.1f} mm slim, {CUP_LEN + BATTERY_BAY + FLOOR:.1f} mm with battery, "
-          f"{2 * R_OUT:.1f} mm across")
+          f"{CUP_LEN + MAGNET_FLOOR:.1f} mm magnet back (+{MAGNET_T + MAGNET_ADHESIVE:.1f} mm for the car-side "
+          f"magnets), {2 * R_OUT:.1f} mm across")
     if not fits:
         raise SystemExit("fit check failed")
 
