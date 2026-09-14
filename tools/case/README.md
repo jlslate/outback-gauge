@@ -7,40 +7,38 @@ different numbers at the top of `case.py`.
 | File | What it is |
 |---|---|
 | `stl/case_front.stl` | Shell with a front lip that holds the glass |
-| `stl/case_back.stl` | Slim back cover for USB power. Case is 18.2 mm deep. |
-| `stl/case_back_battery.stl` | Back cover with a bay for an 802525 (400 mAh, 8×25×25 mm) LiPo. Case is 27.2 mm deep. |
-| `stl/case_back_magnet.stl` | Slim back cover with pockets for two 12×2 mm magnets; snaps onto a matching pair stuck to the car. Case is 18.4 mm deep and sits 2.4 mm off the surface. |
-| `stl/gopro_mount.stl` | Two-finger GoPro-style mount; fits any GoPro vent, dash or suction mount |
+| `stl/case_back_battery_magnet.stl` | Back cover with a bay for an 802525 (400 mAh, 8×25×25 mm) LiPo and pockets for two 12×2 mm mounting magnets |
 
-Outside diameter is 54.0 mm. The glass sits behind a 1.3 mm lip that covers
-only the black border.
+The case is 54.0 mm across and 27.4 mm deep, and sits 2.4 mm off the car
+trim on its magnets. The glass sits behind a 1.3 mm lip that covers only
+the black border.
 
 ## Printing
 
 - **PETG or ASA, not PLA.** PLA softens around 60 °C and a parked car gets hotter.
   At a print service, MJF nylon (PA12) is also a good choice.
 - 0.2 mm layers, 3+ walls, 20–30% infill, **no supports**. Print the front
-  shell lip-down, the back covers outside-face-down (arcs pointing up), and
-  the mount base-down. The STLs are already in these orientations.
-- Print the front shell alone first and check the glass fit before printing the rest.
+  shell lip-down and the back cover outside-face-down (arcs pointing up).
+  The STLs are already in these orientations.
+- Print the front shell alone first and check the glass fit before printing the back.
 
 ## Hardware
 
-- 3 × M2×4 screws (self-tapping or machine) to lock the back cover
-- GoPro mount only: 2 × M3×6 button-head screws and 2 × M3 nuts
-- Magnet back only: 4 × N52 12×2 mm disc magnets with 3M VHB adhesive, and a drop of superglue
-- Soft 1/16" (1.6 mm) closed-cell foam weatherstrip, a few cm. It needs to be thicker than the 1 mm gap so it squashes and takes up tolerance; dense 1 mm mounting tape is too firm.
-- GoPro mount only: a GoPro thumbscrew and car mount (usually sold together)
+- 3 × M2×4 self-tapping screws, pan head, to lock the back cover
+- 4 × N52 12×2 mm disc magnets with 3M VHB adhesive, and a drop of superglue
+- Soft 1/16" (1.6 mm) closed-cell foam weatherstrip, a few cm. It needs to be
+  thicker than the 1 mm gap so it squashes and takes up tolerance; dense 1 mm
+  mounting tape is too firm.
+- The 802525 LiPo
 
 ## Assembly
 
-1. Bolt the mount to the outside of the back cover: screws go in from the
-   inside (heads sit in the recesses) into the nuts trapped in the mount.
+1. Glue the gauge-side magnets into the back cover (see [Magnet mounting](#magnet-mounting), steps 1–2).
 2. Cut three narrow strips of foam (about 3 mm wide) and stick one on the end of each arc.
 3. Drop the board into the front shell from behind, glass first, turning it
    so the USB-C port lines up with the notch at the bottom. PWR and BOOT then
    line up with the two small holes on the right side.
-4. With the battery cover, plug in the battery and lay it in the bay.
+4. Plug the battery into the BAT socket and lay it in the bay.
 5. Press the back cover in. It only lines up one way (there's no screw at the
    bottom). Drive the three M2 screws through the side holes into the arcs.
 
@@ -71,9 +69,10 @@ Everything is set by the constants at the top of `case.py`:
 - Board rattles even with foam, or the cover won't close: `FOAM` (default 1.0 mm)
 - USB-C plug won't reach: `USB_OPENING`
 - Button holes don't line up: `PWR_DEG`, `BOOT_DEG`, `BUTTON_Z`
+- Different magnets: `MAGNET_D`, `MAGNET_T`, `MAGNET_X`
 
 Regenerate after a change. The script checks the case against an outline of
-the board and fails if anything collides.
+the board and the battery, and fails if anything collides.
 
 ```bash
 python3 -m venv tools/case/.venv
