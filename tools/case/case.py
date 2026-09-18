@@ -1,6 +1,6 @@
 """Case for the Waveshare ESP32-S3-Touch-LCD-1.46B, widened-cover-glass version.
 
-Writes printable STLs to tools/case/stl/:
+Writes each part to tools/case/stl/ as both .3mf and .stl:
   case_front.stl                shell with a front lip that holds the 49 mm glass
   case_back_battery_magnet.stl  back cover with a bay for an 802525 LiPo and
                                 pockets for two 12x2 mm mounting magnets
@@ -21,6 +21,7 @@ Usage: tools/case/.venv/bin/python tools/case/case.py
 
 import math
 import pathlib
+import zipfile
 
 import numpy as np
 from manifold3d import CrossSection, Manifold
@@ -206,6 +207,40 @@ def write_stl(solid, path):
         f.write(rec.tobytes())
 
 
+CONTENT_TYPES = """<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">\
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>\
+<Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>"""
+
+RELS = """<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">\
+<Relationship Id="rel0" Target="/3D/3dmodel.model" \
+Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>"""
+
+
+def write_3mf(solid, path, name):
+    """3MF carries millimeter units, so slicers import it at the right size."""
+    mesh = solid.to_mesh()
+    verts = np.asarray(mesh.vert_properties)[:, :3]
+    tris = np.asarray(mesh.tri_verts)
+    body = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<model unit="millimeter" xml:lang="en-US" '
+        'xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">',
+        f'<metadata name="Title">{name}</metadata>',
+        '<resources><object id="1" type="model"><mesh><vertices>',
+    ]
+    body += [f'<vertex x="{x:.4f}" y="{y:.4f}" z="{z:.4f}"/>' for x, y, z in verts]
+    body.append("</vertices><triangles>")
+    body += [f'<triangle v1="{a}" v2="{b}" v3="{c}"/>' for a, b, c in tris]
+    body.append('</triangles></mesh></object></resources><build><item objectid="1"/></build></model>')
+
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", CONTENT_TYPES)
+        z.writestr("_rels/.rels", RELS)
+        z.writestr("3D/3dmodel.model", "".join(body))
+
+
 def print_pose(solid, flip=False):
     """Flat face on the bed at z = 0."""
     if flip:
@@ -226,9 +261,11 @@ def main():
     out.mkdir(exist_ok=True)
     for name, solid in parts.items():
         flip = name.startswith("case_back")  # outside face down, arcs pointing up
-        write_stl(print_pose(solid, flip), out / f"{name}.stl")
+        posed = print_pose(solid, flip)
+        write_3mf(posed, out / f"{name}.3mf", name)
+        write_stl(posed, out / f"{name}.stl")
         bb = solid.bounding_box()
-        print(f"  wrote {name}.stl  {bb[3]-bb[0]:.1f} x {bb[4]-bb[1]:.1f} x {bb[5]-bb[2]:.1f} mm")
+        print(f"  wrote {name}.3mf and .stl  {bb[3]-bb[0]:.1f} x {bb[4]-bb[1]:.1f} x {bb[5]-bb[2]:.1f} mm")
     print(f"Case: {2 * R_OUT:.1f} mm across, {CUP_LEN + BATTERY_BAY + MAGNET_FLOOR:.1f} mm deep, "
           f"{MAGNET_T + MAGNET_ADHESIVE:.1f} mm off the trim on its magnets")
     if not fits:

@@ -6,8 +6,12 @@ different numbers at the top of `case.py`.
 
 | File | What it is |
 |---|---|
-| `stl/case_front.stl` | Shell with a front lip that holds the glass |
-| `stl/case_back_battery_magnet.stl` | Back cover with a bay for an 802525 (400 mAh, 8×25×25 mm) LiPo and pockets for two 12×2 mm mounting magnets |
+| `stl/case_front` | Shell with a front lip that holds the glass |
+| `stl/case_back_battery_magnet` | Back cover with a bay for an 802525 (400 mAh, 8×25×25 mm) LiPo and pockets for two 12×2 mm mounting magnets |
+
+Each part is written as both `.3mf` and `.stl`. Load the **3MF** if your
+slicer offers the choice: it states millimeters, so nothing can import at the
+wrong scale.
 
 The case is 54.0 mm across and 27.4 mm deep, and sits 2.4 mm off the car
 trim on its magnets. The glass sits behind a 1.3 mm lip that covers only
@@ -19,7 +23,7 @@ the black border.
   At a print service, MJF nylon (PA12) is also a good choice.
 - 0.2 mm layers, 3+ walls, 20–30% infill, **no supports**. Print the front
   shell lip-down and the back cover outside-face-down (arcs pointing up).
-  The STLs are already in these orientations.
+  The files are already in these orientations.
 - Print the front shell alone first and check the glass fit before printing the back.
 
 ## Hardware
