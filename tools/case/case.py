@@ -1,9 +1,11 @@
 """Case for the Waveshare ESP32-S3-Touch-LCD-1.46B, widened-cover-glass version.
 
-Writes each part to tools/case/stl/ as both .3mf and .stl:
-  case_front.stl                shell with a front lip that holds the 49 mm glass
-  case_back_battery_magnet.stl  back cover with a bay for an 802525 LiPo and
-                                pockets for two 12x2 mm mounting magnets
+Writes the shell to tools/case/stl/ as both .3mf and .stl:
+  case_front.stl  shell with a front lip that holds the 49 mm glass, and
+                  pockets in its side wall for the magnets the cradle holds
+
+The back cover and the console sled come from sled.py, which imports this
+module.
 
 The board drops into the shell from behind, glass first, until the glass
 meets the lip. Three arcs on the back cover reach forward and press on the
@@ -43,7 +45,6 @@ FIT = 0.3            # radial clearance around the glass; sized for MJF (±0.3 m
 WALL = 2.2
 BACK_CLEAR = 0.8     # behind the header pins
 FOAM = 1.0           # gap between pusher arcs and glass, filled with compressed 1.6 mm foam
-BATTERY_BAY = 9.0    # extra depth for an 8 mm thick cell
 EDGE_CHAMFER = 0.8
 
 R_BORE = GLASS_D / 2 + FIT
@@ -150,16 +151,13 @@ def front_shell():
     return shell
 
 
-def back_cover(bay=BATTERY_BAY, magnets=True):
-    """Back cover. `bay` adds depth for the battery; `magnets` cuts the two
-    mounting pockets (the dock carries the gauge instead, so it uses neither)."""
-    rim = CUP_LEN
-    inner = rim + bay           # inside face of the floor; the battery lies on it
+def back_cover(magnets=False):
+    """Back cover. `magnets` cuts two pockets in the outside face, for sticking
+    the gauge to a flat surface; the sled's cradle holds it instead."""
+    inner = CUP_LEN             # inside face of the floor
     back = inner + MAGNET_FLOOR
 
     cover = cyl(MAGNET_FLOOR, R_OUT, inner)
-    if bay:
-        cover += cyl(bay, R_OUT, rim) - cyl(bay, ARC_R_OUT, rim)
     for deg, half in ARCS:
         cover += sector(ARC_R_IN, ARC_R_OUT, deg, half, GLASS_BACK + FOAM, inner + 0.01)
         cover -= radial_hole(1.7, deg, LOCK_SCREW_Z, ARC_R_IN - 1)  # M2 self-tapping pilot
@@ -209,10 +207,7 @@ def check(parts):
     v = (parts["case_front"] ^ usb_plug()).volume()
     print(f"  {'USB-C plug path':28s} overlap with shell   {v:7.3f} mm^3")
     ok &= v < 0.01
-    battery = box(-12.5, 12.5, -12.5, 12.5, CUP_LEN + 0.5, CUP_LEN + 8.5)
-    v = (parts["case_back_battery_magnet"] ^ battery).volume()
-    print(f"  {'802525 battery':28s} overlap with cover   {v:7.3f} mm^3")
-    return ok and v < 0.01
+    return ok
 
 
 # ---- output ------------------------------------------------------------------
@@ -280,10 +275,7 @@ def print_pose(solid, flip=False):
 
 
 def main():
-    parts = {
-        "case_front": front_shell(),
-        "case_back_battery_magnet": back_cover(),
-    }
+    parts = {"case_front": front_shell()}
     print("Fit check against the board outline:")
     fits = check(parts)
 
@@ -296,8 +288,8 @@ def main():
         write_stl(posed, out / f"{name}.stl")
         bb = solid.bounding_box()
         print(f"  wrote {name}.3mf and .stl  {bb[3]-bb[0]:.1f} x {bb[4]-bb[1]:.1f} x {bb[5]-bb[2]:.1f} mm")
-    print(f"Case: {2 * R_OUT:.1f} mm across, {CUP_LEN + BATTERY_BAY + MAGNET_FLOOR:.1f} mm deep, "
-          f"{MAGNET_T + MAGNET_ADHESIVE:.1f} mm off the trim on its magnets")
+    print(f"Case: {2 * R_OUT:.1f} mm across, "
+          f"{CUP_LEN + MAGNET_FLOOR:.1f} mm deep with the slim back")
     if not fits:
         raise SystemExit("fit check failed")
 

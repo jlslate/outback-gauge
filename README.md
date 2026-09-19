@@ -11,8 +11,8 @@ adapter and adds a tilt meter from the board's motion sensor.
 - **Waveshare ESP32-S3-Touch-LCD-1.46B**: ESP32-S3R8, 412×412 round SPD2010 display, QMI8658 IMU
 - **BLE OBD-II adapter**: OBDLink CX recommended; any ELM327-compatible adapter that
   speaks **Bluetooth LE** should work (the ESP32-S3 can't do classic Bluetooth)
-- USB-C power from the car. The LiPo connector works, but hot cars are hard on LiPos.
-- **Case**: printable two-piece case with a battery bay and a magnet mount in
+- USB-C power from the car's console port. No battery: a hot parked car is hard on LiPos.
+- **Case**: printable two-piece case and a console-tray mount in
   [`tools/case`](tools/case/README.md), for the widened-cover-glass version of the board.
 
 ## Pages

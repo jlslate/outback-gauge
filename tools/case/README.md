@@ -11,9 +11,8 @@ nothing is stuck to the car and the tray still lifts out.
 | File | What it is | From |
 |---|---|---|
 | `stl/case_front` | Shell that holds the glass, with magnet pockets in its side wall at 240° and 300° | `case.py` |
-| `stl/case_back_slim` | Plain back cover: no battery bay, no pockets | `sled.py` |
+| `stl/case_back_slim` | Plain back cover: no magnet pockets | `sled.py` |
 | `stl/sled` | Tray sled with the two cradle arms | `sled.py` |
-| `stl/case_back_battery_magnet` | Alternative back: a bay for an 802525 (400 mAh) LiPo and pockets for magnets facing backward, for sticking the gauge to a flat surface instead | `case.py` |
 
 Each part is written as both `.3mf` and `.stl`. Load the **3MF** if your
 slicer offers the choice: it states millimeters, so nothing can import at the
@@ -45,7 +44,6 @@ cable, which runs back to the dash port.
 - Soft 1/16" (1.6 mm) closed-cell foam weatherstrip, a few cm. It needs to be
   thicker than the 1 mm gap so it squashes and takes up tolerance; dense 1 mm
   mounting tape is too firm.
-- The 802525 LiPo
 
 ## Assembly
 
@@ -54,8 +52,7 @@ cable, which runs back to the dash port.
 3. Drop the board into the front shell from behind, glass first, turning it
    so the USB-C port lines up with the notch at the bottom. PWR and BOOT then
    line up with the two small holes on the right side.
-4. Plug the battery into the BAT socket and lay it in the bay.
-5. Press the back cover in. It only lines up one way (there's no screw at the
+4. Press the back cover in. It only lines up one way (there's no screw at the
    bottom). Drive the three M2 screws through the side holes into the arcs.
 
 ## Magnet mounting
@@ -91,7 +88,7 @@ Everything is set by the constants at the top of `case.py`:
 - Gauge height, arm size and the tray well: the constants at the top of `sled.py`
 
 Regenerate after a change. The script checks the case against an outline of
-the board and the battery, and fails if anything collides.
+the board and the USB-C plug path, and fails if anything collides.
 
 ```bash
 python3 -m venv tools/case/.venv

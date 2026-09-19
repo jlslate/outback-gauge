@@ -149,7 +149,7 @@ def main():
     fits = check(whole)
 
     for name, solid in {"sled": whole,
-                        "case_back_slim": case.back_cover(bay=0.0, magnets=False)}.items():
+                        "case_back_slim": case.back_cover()}.items():
         posed = print_pose(solid, flip=name.startswith("case_back"))
         write_3mf(posed, out / f"{name}.3mf", name)
         write_stl(posed, out / f"{name}.stl")
