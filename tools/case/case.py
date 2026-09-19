@@ -4,6 +4,10 @@ Writes the shell to tools/case/stl/ as both .3mf and .stl:
   case_front.stl  shell with a front lip that holds the 49 mm glass, and
                   pockets in its side wall for the magnets the cradle holds
 
+The back cover twists on: three lugs drop into channels in the shell's back
+face and turn 18 degrees into ramped grooves. Set BAYONET = False for the
+older joint, three M2x4 screws through the wall.
+
 The back cover and the console sled come from sled.py, which imports this
 module.
 
@@ -63,6 +67,32 @@ LOCK_SCREW_Z = CUP_LEN - 3.0
 USB_OPENING = (12.5, 7.9)   # width, height; fits a typical USB-C plug overmold
 BUTTON_SLOT = (3.5, 4.0)    # tangential width, height (poke with a toothpick)
 
+# ---- the joint ---------------------------------------------------------------
+# Bayonet: each pusher arc carries a lug that drops into a channel cut through
+# the shell's back face, then twists into a groove whose roof ramps down and
+# pulls the cover forward onto the foam. A bump near the end is the detent and
+# the end of the groove is the stop. The three lugs are at 0, 90 and 180 deg,
+# so the cover only goes on one way round.
+# Set BAYONET = False to go back to three M2x4 screws through the wall instead.
+BAYONET = True
+BAY_DEPTH = 1.0             # groove depth into the 2.2 mm wall; 1.2 mm is left
+BAY_FIT = 0.25              # radial clearance, lug to the bottom of the groove
+BAY_TWIST = 18.0            # degrees from the entry channel to locked
+BAY_LIFT = 0.7              # how far the ramp pulls the cover forward
+BAY_PRELOAD = 0.1           # squeeze at the locked end; raise it if it rattles
+LUG_HALF_DEG = 5.0
+LUG_T = 2.0                 # lug thickness, along the axis
+LUG_SET = 2.0               # lug's back face, this far in from the shell's back
+DETENT = 0.25               # how far the detent bump hangs into the groove
+GRIP_N, GRIP_R, GRIP_CUT = 18, 1.6, 0.7   # scallops to twist the cover by
+
+BAY_R = R_BORE + BAY_DEPTH
+LUG_R = BAY_R - BAY_FIT
+LUG_Z1 = CUP_LEN - LUG_SET  # with the cover seated
+LUG_Z0 = LUG_Z1 - LUG_T
+GROOVE_Z0 = LUG_Z0 - 0.3
+ENTRY_HALF_DEG = LUG_HALF_DEG + 1.0
+
 # Two 12x2 mm discs sit in pockets in the back's outside face and snap onto a
 # matching pair stuck to the car. Two side by side stop it rotating.
 MAGNET_D, MAGNET_T = 12.0, 2.0
@@ -120,6 +150,71 @@ def ring_chamfer(r, z, c, front=True):
     return cyl(c, r + 1, z - c, r_top=r + 1) - cyl(c, r, z - c, r_top=r - c)
 
 
+# ---- cutters the shell shares with the fit check -----------------------------
+
+def usb_cut():
+    usb_w, usb_h = USB_OPENING
+    usb_mid = LIP + sum(USB_Z) / 2
+    return box(-usb_w / 2, usb_w / 2, -R_OUT - 1, -R_BORE + 1, usb_mid - usb_h / 2, CUP_LEN + 1)
+
+
+def button_slots():
+    bw, bh = BUTTON_SLOT
+    slot = box(R_BORE - 1, R_OUT + 1, -bw / 2, bw / 2, -bh / 2, bh / 2)
+    cuts = [radial(slot, deg, LIP + BUTTON_Z) for deg in (PWR_DEG, BOOT_DEG)]
+    return cuts[0] + cuts[1]
+
+
+def magnet_pockets():
+    out = None
+    for deg in SIDE_MAGNET_DEG:
+        pocket = Manifold.cylinder(MAGNET_POCKET + SIDE_POCKET_SINK + 1, MAGNET_D / 2 + 0.15,
+                                   MAGNET_D / 2 + 0.15, 64)
+        pocket = pocket.rotate([0, 90, 0]).translate([R_OUT - MAGNET_POCKET - SIDE_POCKET_SINK, 0, 0])
+        pocket = radial(pocket, deg, SIDE_MAGNET_Z)
+        out = pocket if out is None else out + pocket
+    return out
+
+
+# ---- the bayonet -------------------------------------------------------------
+
+def _roof(f):
+    """Height of the groove's roof, f = 0 at the entry channel, 1 at locked."""
+    return LUG_Z1 + BAY_LIFT * (1 - f) - BAY_PRELOAD * f
+
+
+def bayonet_groove(deg, steps=24):
+    """Entry channel plus the ramped groove the lug at `deg` twists along."""
+    entry = deg - BAY_TWIST
+    a0, a1 = entry - LUG_HALF_DEG, deg + LUG_HALF_DEG
+    g = sector(R_BORE - 0.01, BAY_R, entry, ENTRY_HALF_DEG, GROOVE_Z0, CUP_LEN + 1)
+    for i in range(steps):                       # the ramp, as steps finer than a layer
+        f0, f1 = i / steps, (i + 1) / steps
+        mid = a0 + (a1 - a0) * (f0 + f1) / 2
+        half = (a1 - a0) / steps / 2 + 0.05
+        g += sector(R_BORE - 0.01, BAY_R, mid, half, GROOVE_Z0, _roof(f1))
+    return g
+
+
+def bayonet_detent(deg, steps=6):
+    """Bump just behind the locked lug, added back after the groove is cut.
+    It ramps up on the side the lug comes from and drops off square on the
+    other, so it is easy to turn past and holds against turning back."""
+    a0, a1 = deg - BAY_TWIST - LUG_HALF_DEG, deg + LUG_HALF_DEG
+    end = deg - LUG_HALF_DEG - 0.2                       # just behind the locked lug
+    top = lambda a: _roof((a - a0) / (a1 - a0))
+    bump = sector(R_BORE - 0.01, BAY_R - 0.2, end - 0.3, 0.3, top(end) - DETENT, top(end))
+    for i in range(steps):                               # the climb, 1 deg of ramp
+        a = end - 0.6 - 1.0 * (1 - (i + 0.5) / steps)
+        d = DETENT * (i + 0.5) / steps
+        bump += sector(R_BORE - 0.01, BAY_R - 0.2, a, 1.0 / steps / 2 + 0.05, top(a) - d, top(a))
+    return bump
+
+
+def bayonet_lug(deg):
+    return sector(ARC_R_OUT - 0.3, LUG_R, deg, LUG_HALF_DEG, LUG_Z0, LUG_Z1)
+
+
 # ---- parts -------------------------------------------------------------------
 
 def front_shell():
@@ -130,24 +225,19 @@ def front_shell():
     shell -= ring_chamfer(R_OUT, 0, EDGE_CHAMFER)
     shell -= ring_chamfer(R_OUT, CUP_LEN, 0.5, front=False)
 
-    usb_w, usb_h = USB_OPENING
-    usb_mid = LIP + sum(USB_Z) / 2
-    shell -= box(-usb_w / 2, usb_w / 2, -R_OUT - 1, -R_BORE + 1, usb_mid - usb_h / 2, CUP_LEN + 1)
-
-    bw, bh = BUTTON_SLOT
-    for deg in (PWR_DEG, BOOT_DEG):
-        slot = box(R_BORE - 1, R_OUT + 1, -bw / 2, bw / 2, -bh / 2, bh / 2)
-        shell -= radial(slot, deg, LIP + BUTTON_Z)
+    shell -= usb_cut()
+    shell -= button_slots()
 
     for deg, _ in ARCS:
-        shell -= radial_hole(2.2, deg, LOCK_SCREW_Z, R_BORE - 0.5)
+        if BAYONET:
+            shell -= bayonet_groove(deg)
+            shell += bayonet_detent(deg)
+        else:
+            shell -= radial_hole(2.2, deg, LOCK_SCREW_Z, R_BORE - 0.5)
 
     for deg in SIDE_MAGNET_DEG:                       # cradle magnets
         shell += sector(SIDE_BOSS_R, R_BORE, deg, SIDE_BOSS_HALF_DEG, GLASS_BACK + 0.6, CUP_LEN)
-        pocket = Manifold.cylinder(MAGNET_POCKET + SIDE_POCKET_SINK + 1, MAGNET_D / 2 + 0.15,
-                                   MAGNET_D / 2 + 0.15, 64)
-        pocket = pocket.rotate([0, 90, 0]).translate([R_OUT - MAGNET_POCKET - SIDE_POCKET_SINK, 0, 0])
-        shell -= radial(pocket, deg, SIDE_MAGNET_Z)
+    shell -= magnet_pockets()
     return shell
 
 
@@ -160,7 +250,16 @@ def back_cover(magnets=False):
     cover = cyl(MAGNET_FLOOR, R_OUT, inner)
     for deg, half in ARCS:
         cover += sector(ARC_R_IN, ARC_R_OUT, deg, half, GLASS_BACK + FOAM, inner + 0.01)
-        cover -= radial_hole(1.7, deg, LOCK_SCREW_Z, ARC_R_IN - 1)  # M2 self-tapping pilot
+        if BAYONET:
+            cover += bayonet_lug(deg)
+        else:
+            cover -= radial_hole(1.7, deg, LOCK_SCREW_Z, ARC_R_IN - 1)  # M2 self-tapping pilot
+
+    if BAYONET:                                                     # something to twist it by
+        for i in range(GRIP_N):
+            a = 2 * math.pi * i / GRIP_N
+            r = R_OUT + GRIP_R - GRIP_CUT
+            cover -= cyl(MAGNET_FLOOR + 3, GRIP_R, inner - 1, x=r * math.cos(a), y=r * math.sin(a), seg=32)
 
     if magnets:
         for x in (-MAGNET_X, MAGNET_X):
@@ -207,6 +306,22 @@ def check(parts):
     v = (parts["case_front"] ^ usb_plug()).volume()
     print(f"  {'USB-C plug path':28s} overlap with shell   {v:7.3f} mm^3")
     ok &= v < 0.01
+
+    if BAYONET:
+        shell, cover = parts["case_front"], back_cover()
+        grooves = None
+        for deg, _ in ARCS:
+            g = bayonet_groove(deg)
+            grooves = g if grooves is None else grooves + g
+        v = (grooves ^ (usb_cut() + button_slots() + magnet_pockets())).volume()
+        print(f"  {'bayonet grooves':28s} overlap with cuts    {v:7.3f} mm^3")
+        ok &= v < 0.01
+        v = (shell ^ cover.rotate([0, 0, -BAY_TWIST])).volume()
+        print(f"  {'cover at the entry angle':28s} overlap with shell   {v:7.3f} mm^3")
+        ok &= v < 0.01
+        v = (shell ^ cover).volume()
+        print(f"  {'cover locked':28s} squeeze on the ramp  {v:7.3f} mm^3")
+        ok &= v < 40
     return ok
 
 

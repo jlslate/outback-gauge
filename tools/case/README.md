@@ -10,8 +10,8 @@ nothing is stuck to the car and the tray still lifts out.
 
 | File | What it is | From |
 |---|---|---|
-| `stl/case_front` | Shell that holds the glass, with magnet pockets in its side wall at 240° and 300° | `case.py` |
-| `stl/case_back_slim` | Plain back cover: no magnet pockets | `sled.py` |
+| `stl/case_front` | Shell that holds the glass, with magnet pockets in its side wall at 240° and 300° and the bayonet grooves for the back | `case.py` |
+| `stl/case_back_slim` | Back cover: three bayonet lugs, no magnet pockets | `sled.py` |
 | `stl/sled` | Tray sled with the two cradle arms | `sled.py` |
 
 Each part is written as both `.3mf` and `.stl`. Load the **3MF** if your
@@ -20,6 +20,25 @@ wrong scale.
 
 The case is 54.0 mm across and 18.4 mm deep with the slim back. The glass
 sits behind a 1.3 mm lip that covers only the black border.
+
+## The twist joint
+
+The back cover has no screws. Three lugs on its pusher arcs drop into
+channels cut through the shell's back face, and an 18° twist takes them into
+grooves whose roofs ramp down 0.7 mm, pulling the cover forward onto the
+foam. A ramped bump near the end of each groove is the detent: it takes a
+push to turn past and then holds against the car's vibration, and the end of
+the groove is the stop. The lugs are at 0°, 90° and 180°, so the cover only
+lines up one way round. Scallops around the cover's rim are there to grip.
+
+Being a first cut, the fit is the part most likely to need a tweak. If it
+won't turn, raise `BAY_FIT`; if it turns but rocks, raise `BAY_PRELOAD`; if
+it takes two hands to get past the detent, lower `DETENT`. Each is one
+number at the top of `case.py` and a reprint of the one part.
+
+`BAYONET = False` puts the old joint back: three M2×4 screws through the
+wall into the arcs. Both parts have to be regenerated together — a bayonet
+shell will not take a screw cover.
 
 In the sled, the gauge stands square with its bottom edge 8 mm clear, its
 face flush with the sled's front, and its screen center 38 mm above the tray
@@ -33,11 +52,15 @@ cable, which runs back to the dash port.
 - 0.2 mm layers, 3+ walls, 20–30% infill, **no supports**. Print the front
   shell lip-down and the back cover outside-face-down (arcs pointing up).
   The files are already in these orientations.
+- The groove roofs and the undersides of the lugs are ~1 mm unsupported
+  ledges. They print, but expect a little droop; if the twist is stiff at
+  first, run a knife around them once.
 - Print the front shell alone first and check the glass fit before printing the back.
 
 ## Hardware
 
-- 3 × M2×4 self-tapping screws, pan head, to lock the back cover
+- No screws: the back cover twists on. (With `BAYONET = False`, 3 × M2×4
+  self-tapping pan-head screws instead.)
 - 4 × N52 12×2 mm disc magnets and a drop of superglue: two in the shell's
   side wall, two facing them in the sled's arms. Peel the VHB off and glue
   them in; the pockets, not the adhesive, hold them
@@ -52,8 +75,10 @@ cable, which runs back to the dash port.
 3. Drop the board into the front shell from behind, glass first, turning it
    so the USB-C port lines up with the notch at the bottom. PWR and BOOT then
    line up with the two small holes on the right side.
-4. Press the back cover in. It only lines up one way (there's no screw at the
-   bottom). Drive the three M2 screws through the side holes into the arcs.
+4. Line the three lugs up with the three channels in the shell's back face —
+   only one rotation fits — press the cover in against the foam, and twist it
+   clockwise (seen from the back) about 18° until it clicks past the detents
+   and stops.
 
 ## Magnet mounting
 
@@ -82,6 +107,8 @@ Everything is set by the constants at the top of `case.py`:
 - Board rattles even with foam, or the cover won't close: `FOAM` (default 1.0 mm)
 - USB-C plug won't reach: `USB_OPENING`
 - Button holes don't line up: `PWR_DEG`, `BOOT_DEG`, `BUTTON_Z`
+- Twist joint too tight, too loose, or the detent too stiff: `BAY_FIT`,
+  `BAY_PRELOAD`, `DETENT`; back to screws with `BAYONET = False`
 - Different magnets: `MAGNET_D`, `MAGNET_T`, `MAGNET_X`
 - Magnets standing proud of the shell: `SIDE_POCKET_SINK` (a flat disc in a
   round pocket sits above a curved surface unless the pocket is sunk)
