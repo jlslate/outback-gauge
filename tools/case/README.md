@@ -4,20 +4,28 @@ A two-piece round case for the ESP32-S3-Touch-LCD-1.46B **with widened
 protective cover glass** (49 mm glass). The other glass versions need
 different numbers at the top of `case.py`.
 
-| File | What it is |
-|---|---|
-| `stl/case_front` | Shell with a front lip that holds the glass |
-| `stl/case_back_battery_magnet` | Back cover with a bay for an 802525 (400 mAh, 8×25×25 mm) LiPo and pockets for two 12×2 mm mounting magnets |
-| `stl/case_back_slim` | Plain back cover: no battery bay, no magnet pockets. For mounts that attach to the back another way |
-| `stl/sled` | Frame that drops into the console tray's well, from `sled.py`. Confirmed to fit a 2025 Outback |
+The gauge lives in the console tray under the screen: a printed sled drops
+into the tray's well and two arms hold the case upright on magnets, so
+nothing is stuck to the car and the tray still lifts out.
+
+| File | What it is | From |
+|---|---|---|
+| `stl/case_front` | Shell that holds the glass, with magnet pockets in its side wall at 240° and 300° | `case.py` |
+| `stl/case_back_slim` | Plain back cover: no battery bay, no pockets | `sled.py` |
+| `stl/sled` | Tray sled with the two cradle arms | `sled.py` |
+| `stl/case_back_battery_magnet` | Alternative back: a bay for an 802525 (400 mAh) LiPo and pockets for magnets facing backward, for sticking the gauge to a flat surface instead | `case.py` |
 
 Each part is written as both `.3mf` and `.stl`. Load the **3MF** if your
 slicer offers the choice: it states millimeters, so nothing can import at the
 wrong scale.
 
-The case is 54.0 mm across and 27.4 mm deep, and sits 2.4 mm off the car
-trim on its magnets. The glass sits behind a 1.3 mm lip that covers only
-the black border.
+The case is 54.0 mm across and 18.4 mm deep with the slim back. The glass
+sits behind a 1.3 mm lip that covers only the black border.
+
+In the sled, the gauge stands square with its bottom edge 8 mm clear, its
+face flush with the sled's front, and its screen center 38 mm above the tray
+floor. The 14 mm gap between the arms leaves the USB-C notch clear for the
+cable, which runs back to the dash port.
 
 ## Printing
 
@@ -31,7 +39,9 @@ the black border.
 ## Hardware
 
 - 3 × M2×4 self-tapping screws, pan head, to lock the back cover
-- 4 × N52 12×2 mm disc magnets with 3M VHB adhesive, and a drop of superglue
+- 4 × N52 12×2 mm disc magnets and a drop of superglue: two in the shell's
+  side wall, two facing them in the sled's arms. Peel the VHB off and glue
+  them in; the pockets, not the adhesive, hold them
 - Soft 1/16" (1.6 mm) closed-cell foam weatherstrip, a few cm. It needs to be
   thicker than the 1 mm gap so it squashes and takes up tolerance; dense 1 mm
   mounting tape is too firm.
@@ -76,6 +86,9 @@ Everything is set by the constants at the top of `case.py`:
 - USB-C plug won't reach: `USB_OPENING`
 - Button holes don't line up: `PWR_DEG`, `BOOT_DEG`, `BUTTON_Z`
 - Different magnets: `MAGNET_D`, `MAGNET_T`, `MAGNET_X`
+- Magnets standing proud of the shell: `SIDE_POCKET_SINK` (a flat disc in a
+  round pocket sits above a curved surface unless the pocket is sunk)
+- Gauge height, arm size and the tray well: the constants at the top of `sled.py`
 
 Regenerate after a change. The script checks the case against an outline of
 the board and the battery, and fails if anything collides.

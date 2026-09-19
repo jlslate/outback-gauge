@@ -70,6 +70,20 @@ MAGNET_X = 10.0             # pocket centers at x = +/-10 (left and right)
 MAGNET_FLOOR = 3.2          # back cover floor; leaves 0.7 mm under each pocket
 MAGNET_POCKET = MAGNET_T + MAGNET_ADHESIVE + 0.1
 
+# The sled's cradle arms hold the shell by two magnets set into its side wall,
+# at the angles where the arms touch (0 deg = 3 o'clock, counter-clockwise).
+# The wall is only 2.2 mm, so it is thickened inward behind each magnet; at
+# these angles the board's edge is far enough in to leave room.
+SIDE_MAGNET_DEG = (240.0, 300.0)
+SIDE_BOSS_R = 22.5          # inner face of the added material, behind the pocket
+SIDE_BOSS_HALF_DEG = 13.0     # stays clear of the USB-C plug at the bottom
+SIDE_MAGNET_Z = 9.5         # depth of the pocket centers behind the glass
+# The shell's outside is convex, so a magnet sitting level with the tangent
+# point would stand proud around the rim of its pocket. 0.8 mm of extra depth
+# sinks the whole disc below the surface. (The arms are concave, so theirs
+# sit level.)
+SIDE_POCKET_SINK = 0.8
+
 
 # ---- helpers -----------------------------------------------------------------
 
@@ -126,6 +140,13 @@ def front_shell():
 
     for deg, _ in ARCS:
         shell -= radial_hole(2.2, deg, LOCK_SCREW_Z, R_BORE - 0.5)
+
+    for deg in SIDE_MAGNET_DEG:                       # cradle magnets
+        shell += sector(SIDE_BOSS_R, R_BORE, deg, SIDE_BOSS_HALF_DEG, GLASS_BACK + 0.6, CUP_LEN)
+        pocket = Manifold.cylinder(MAGNET_POCKET + SIDE_POCKET_SINK + 1, MAGNET_D / 2 + 0.15,
+                                   MAGNET_D / 2 + 0.15, 64)
+        pocket = pocket.rotate([0, 90, 0]).translate([R_OUT - MAGNET_POCKET - SIDE_POCKET_SINK, 0, 0])
+        shell -= radial(pocket, deg, SIDE_MAGNET_Z)
     return shell
 
 
