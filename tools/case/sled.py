@@ -42,6 +42,7 @@ FRONT_MARGIN = 2.0    # solid front rail, this far past the back of the arms
 
 # ---- the cradle --------------------------------------------------------------
 GAUGE_GAP = 8.0       # bottom of the case above the sled's top face
+GAUGE_X = -27.5       # sideways offset from the sled centerline
 # Case mid-depth, back from the sled's front edge: half the case's depth, so
 # the glass ends up flush with the front of the sled.
 GAUGE_Y = -(case.CUP_LEN + case.MAGNET_FLOOR) / 2
@@ -89,7 +90,7 @@ def sled():
 
 def _upright(solid):
     """Something built around the case's axis, stood up at the cradle."""
-    return solid.rotate([90, 0, 0]).translate([0, GAUGE_Y, CENTER_Z])
+    return solid.rotate([90, 0, 0]).translate([GAUGE_X, GAUGE_Y, CENTER_Z])
 
 
 def _bore(radius):
@@ -137,21 +138,24 @@ def cradle():
     return part
 
 
+def overhang():
+    """Arm footprint that hangs off the sled, seen from above."""
+    return (cradle().project() - sled().slice(SLED_T / 2)).area()
+
+
 def check(part):
     """The case has to drop in, the plug has to clear the gap between arms, and
     the arms have to stand on solid sled."""
     ok = True
-    under = box(-case.R_OUT - 20, case.R_OUT + 20, GAUGE_Y - ARM_DEPTH / 2, GAUGE_Y + ARM_DEPTH / 2, 0, SLED_T)
-    solid = (part ^ under).volume()
-    full = under.volume() - (_bore(case.R_OUT + ARM_FIT) ^ under).volume()
-    print(f"  sled under the arms: {solid / full * 100:5.1f}% solid")
-    ok &= solid / full > 0.999
+    over = overhang()
+    print(f"  arms off the sled:  {over:6.3f} mm^2 of footprint")
+    ok &= over < 0.01
     v = (part ^ _bore(case.R_OUT)).volume()
     print(f"  case in the cradle: overlap {v:6.3f} mm^3")
     ok &= v < 0.01
     # The plug drops out of the notch into the gap under the case, then the
     # cable runs back to the port; only that gap has to stay clear.
-    plug = box(-6.4, 6.4, GAUGE_Y - 6, GAUGE_Y + 6, SLED_T, CENTER_Z - case.R_OUT + 1)
+    plug = box(GAUGE_X - 6.4, GAUGE_X + 6.4, GAUGE_Y - 6, GAUGE_Y + 6, SLED_T, CENTER_Z - case.R_OUT + 1)
     v = (part ^ plug).volume()
     print(f"  plug in the gap:    overlap {v:6.3f} mm^3")
     return ok and v < 0.01
@@ -179,6 +183,7 @@ def main():
           f"bottom edge {SLED_T + GAUGE_GAP:.0f} mm up; flat pads, {ARM_T_TOP:.0f} mm across the top")
     print(f"front rail {front_rail():.1f} mm wide; the arms end {front_rail() + GAUGE_Y - ARM_DEPTH / 2:.1f} mm "
           f"short of its back edge")
+    print(f"gauge offset {GAUGE_X:+.1f} mm from the sled's centerline")
     if not fits:
         raise SystemExit("clearance check failed")
 
