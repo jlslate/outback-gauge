@@ -96,10 +96,16 @@ ENTRY_HALF_DEG = LUG_HALF_DEG + 1.0
 # Two 12x2 mm discs sit in pockets in the back's outside face and snap onto a
 # matching pair stuck to the car. Two side by side stop it rotating.
 MAGNET_D, MAGNET_T = 12.0, 2.0
-MAGNET_ADHESIVE = 0.4       # 3M 4920 VHB on the magnets as sold
+MAGNET_STANDOFF = 0.4       # deliberate: it sets how far each disc sits below
+                            # its pocket rim, and so the air gap between the
+                            # pair. Two N52 12x2 discs in contact are far
+                            # stronger than the gauge needs and would pull an
+                            # arm off the sled before letting go; about 2 mm of
+                            # gap is firm but comes off one-handed. Raise it to
+                            # weaken the hold, lower it to strengthen.
 MAGNET_X = 10.0             # pocket centers at x = +/-10 (left and right)
 MAGNET_FLOOR = 3.2          # back cover floor; leaves 0.7 mm under each pocket
-MAGNET_POCKET = MAGNET_T + MAGNET_ADHESIVE + 0.1
+MAGNET_POCKET = MAGNET_T + MAGNET_STANDOFF + 0.1
 
 # The sled's cradle arms hold the shell by two magnets set into its side wall,
 # at the angles where the arms touch (0 deg = 3 o'clock, counter-clockwise).

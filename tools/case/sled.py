@@ -55,7 +55,7 @@ ARM_T_TOP = 6.0
 ARM_UP = 10.0         # how far the pad runs up the case from the magnet
 ARM_DOWN = 7.5        # and down toward the gap at the bottom; keeps the 12.3 mm
                       # magnet inside the pad, which is centered on the tangent
-MAGNET_POCKET = case.MAGNET_T + case.MAGNET_ADHESIVE + 0.1
+MAGNET_POCKET = case.MAGNET_T + case.MAGNET_STANDOFF + 0.1
 
 CENTER_Z = SLED_T + GAUGE_GAP + case.R_OUT     # case center above the sled's underside
 

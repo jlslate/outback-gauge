@@ -62,10 +62,9 @@ cable, which runs back to the dash port.
 - No screws: the back cover twists on. (With `BAYONET = False`, 3 × M2×4
   self-tapping pan-head screws instead.)
 - 4 × N52 12×2 mm disc magnets and thin superglue: two in the shell's side
-  wall, two facing them in the sled's arms. **Leave the 3M VHB backing on** —
-  the pockets are 2.5 mm deep for a 2.0 mm magnet because they are sized for
-  magnet plus adhesive, and the tape sits behind the disc and pushes its face
-  toward its partner. Peeling it costs 0.8 mm of air gap.
+  wall, two facing them in the sled's arms. The pockets are 2.5 mm deep for a
+  2.0 mm disc on purpose — see `MAGNET_STANDOFF`. Leave whatever adhesive is
+  on the back in place; it tacks the disc while the glue sets.
 - Soft 1/16" (1.6 mm) closed-cell foam weatherstrip, a few cm. It needs to be
   thicker than the 1 mm gap so it squashes and takes up tolerance; dense 1 mm
   mounting tape is too firm.
@@ -119,6 +118,9 @@ Everything is set by the constants at the top of `case.py`:
 - Twist joint too tight, too loose, or the detent too stiff: `BAY_FIT`,
   `BAY_PRELOAD`, `DETENT`; back to screws with `BAYONET = False`
 - Different magnets: `MAGNET_D`, `MAGNET_T`, `MAGNET_X`
+- Gauge too hard or too easy to lift off the cradle: `MAGNET_STANDOFF` (bigger
+  is weaker). Two N52 12×2 pairs in contact would be several kilos, enough to
+  pull an arm off the sled; the ~2 mm gap is deliberate
 - Magnets standing proud of the shell: `SIDE_POCKET_SINK` (a flat disc in a
   round pocket sits above a curved surface unless the pocket is sunk)
 - Gauge height, arm size and the tray well: the constants at the top of `sled.py`
