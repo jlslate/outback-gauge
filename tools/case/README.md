@@ -61,16 +61,18 @@ cable, which runs back to the dash port.
 
 - No screws: the back cover twists on. (With `BAYONET = False`, 3 × M2×4
   self-tapping pan-head screws instead.)
-- 4 × N52 12×2 mm disc magnets and a drop of superglue: two in the shell's
-  side wall, two facing them in the sled's arms. Peel the VHB off and glue
-  them in; the pockets, not the adhesive, hold them
+- 4 × N52 12×2 mm disc magnets and thin superglue: two in the shell's side
+  wall, two facing them in the sled's arms. **Leave the 3M VHB backing on** —
+  the pockets are 2.5 mm deep for a 2.0 mm magnet because they are sized for
+  magnet plus adhesive, and the tape sits behind the disc and pushes its face
+  toward its partner. Peeling it costs 0.8 mm of air gap.
 - Soft 1/16" (1.6 mm) closed-cell foam weatherstrip, a few cm. It needs to be
   thicker than the 1 mm gap so it squashes and takes up tolerance; dense 1 mm
   mounting tape is too firm.
 
 ## Assembly
 
-1. Glue the gauge-side magnets into the back cover (see [Magnet mounting](#magnet-mounting), steps 1–2).
+1. Set the four magnets into the shell and the arms (see [Magnet mounting](#magnet-mounting)).
 2. Cut three narrow strips of foam (about 3 mm wide) and stick one on the end of each arc.
 3. Drop the board into the front shell from behind, glass first, turning it
    so the USB-C port lines up with the notch at the bottom. PWR and BOOT then
@@ -82,22 +84,29 @@ cable, which runs back to the dash port.
 
 ## Magnet mounting
 
-Adhesive magnets all face the same way out of the pack, so two of them stuck
-back to back would repel. The gauge-side pair gets flipped and glued instead,
-and the car-side pair is placed by letting the gauge carry it into position:
+Four magnets in four pockets: two in the shell's side wall at 240° and 300°,
+two facing them in the sled's arms. Nothing is stuck to the car.
 
-1. Snap two magnets together in pairs, liners still on, so each pair attracts.
-2. Peel the adhesive off the magnet that will go in the gauge. Put a small
-   drop of superglue in each pocket and press that magnet in, with its
-   partner still stuck to it. Let the glue set.
-3. Clean the spot in the car with rubbing alcohol. Peel the liners off the
-   two car-side magnets (still riding on the gauge) and press the gauge onto
-   the spot firmly for 30 seconds.
-4. Leave it for 24 hours so the VHB can cure before taking the gauge off.
-   Slide or tilt it off rather than pulling straight out.
+Adhesive magnets all face the same way out of the pack, so the pairs have to
+be worked out before any glue is involved — a pair that repels pushes the
+gauge off its cradle, and a glued N52 will chip before it comes out.
 
-Two magnets side by side keep the gauge from turning. It can go on upside
-down if you rotate it 180°, so check the picture.
+1. Snap the magnets together in two pairs, tape still on, so each pair
+   attracts. Mark the outward face of each with a pen.
+2. Press one magnet of each pair into a shell pocket, VHB and all, with the
+   marked face out. The 12.3 mm pocket locates the 12 mm disc.
+3. Press its partner into the arm pocket facing it, again marked face out.
+4. Run a little **thin** superglue around the rim of each disc and let it
+   wick into the joint between the magnet and the pocket wall. Bonding the
+   circumference is what resists the disc being pulled out; glue smeared
+   behind the magnet does little and will not stick to the VHB anyway.
+5. Keep the superglue away from the screen — the vapour blooms white on glass
+   and plastic. Do the shell's pair before the board goes in, and give it an
+   hour.
+
+The gauge then drops into the cradle and the two magnets pull it against the
+pads. The arms carry its weight in the V between them; the magnets only stop
+it lifting out and rattling.
 
 ## Adjusting the fit
 
