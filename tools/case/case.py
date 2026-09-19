@@ -199,15 +199,17 @@ def bayonet_groove(deg, steps=24):
 def bayonet_detent(deg, steps=6):
     """Bump just behind the locked lug, added back after the groove is cut.
     It ramps up on the side the lug comes from and drops off square on the
-    other, so it is easy to turn past and holds against turning back."""
+    other, so it is easy to turn past and holds against turning back. It runs
+    the full depth of the groove so it grows off the wall as the shell prints,
+    instead of starting in mid-air."""
     a0, a1 = deg - BAY_TWIST - LUG_HALF_DEG, deg + LUG_HALF_DEG
     end = deg - LUG_HALF_DEG - 0.2                       # just behind the locked lug
     top = lambda a: _roof((a - a0) / (a1 - a0))
-    bump = sector(R_BORE - 0.01, BAY_R - 0.2, end - 0.3, 0.3, top(end) - DETENT, top(end))
+    bump = sector(R_BORE - 0.01, BAY_R, end - 0.3, 0.3, top(end) - DETENT, top(end))
     for i in range(steps):                               # the climb, 1 deg of ramp
         a = end - 0.6 - 1.0 * (1 - (i + 0.5) / steps)
         d = DETENT * (i + 0.5) / steps
-        bump += sector(R_BORE - 0.01, BAY_R - 0.2, a, 1.0 / steps / 2 + 0.05, top(a) - d, top(a))
+        bump += sector(R_BORE - 0.01, BAY_R, a, 1.0 / steps / 2 + 0.05, top(a) - d, top(a))
     return bump
 
 
@@ -325,6 +327,22 @@ def check(parts):
     return ok
 
 
+def floating(posed, layer=0.2):
+    """Regions that begin in mid-air as the part prints, layer by layer. These
+    are what a slicer flags as floating and asks to support; an overhang that
+    grows off a wall is fine, an island is not."""
+    bb = posed.bounding_box()
+    out, prev, z = [], None, bb[2] + layer / 2
+    while z < bb[5]:
+        cs = posed.slice(z)
+        if prev is not None:
+            for comp in cs.decompose():
+                if comp.area() > 0.02 and (comp ^ prev).area() < 0.01 * comp.area():
+                    out.append((z - bb[2], comp.area()))
+        prev, z = cs, z + layer
+    return out
+
+
 # ---- output ------------------------------------------------------------------
 
 def write_stl(solid, path):
@@ -402,7 +420,10 @@ def main():
         write_3mf(posed, out / f"{name}.3mf", name)
         write_stl(posed, out / f"{name}.stl")
         bb = solid.bounding_box()
-        print(f"  wrote {name}.3mf and .stl  {bb[3]-bb[0]:.1f} x {bb[4]-bb[1]:.1f} x {bb[5]-bb[2]:.1f} mm")
+        air = floating(posed)
+        fits &= not air
+        print(f"  wrote {name}.3mf and .stl  {bb[3]-bb[0]:.1f} x {bb[4]-bb[1]:.1f} x {bb[5]-bb[2]:.1f} mm"
+              f"{'' if not air else f', {len(air)} FLOATING region(s)'}")
     print(f"Case: {2 * R_OUT:.1f} mm across, "
           f"{CUP_LEN + MAGNET_FLOOR:.1f} mm deep with the slim back")
     if not fits:

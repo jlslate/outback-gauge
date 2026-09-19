@@ -25,7 +25,7 @@ import math
 import pathlib
 
 import case
-from case import box, cyl, print_pose, write_3mf, write_stl
+from case import box, cyl, floating, print_pose, write_3mf, write_stl
 from manifold3d import CrossSection, Manifold
 
 # ---- the tray well -----------------------------------------------------------
@@ -170,8 +170,11 @@ def main():
         write_3mf(posed, out / f"{name}.3mf", name)
         write_stl(posed, out / f"{name}.stl")
         bb = solid.bounding_box()
+        air = floating(posed)
+        fits &= not air
         print(f"wrote {name}  {bb[3]-bb[0]:.0f} x {bb[4]-bb[1]:.0f} x {bb[5]-bb[2]:.1f} mm, "
-              f"{solid.volume()/1000:.0f} cm3, {len(solid.decompose())} piece(s)")
+              f"{solid.volume()/1000:.0f} cm3, {len(solid.decompose())} piece(s)"
+              f"{'' if not air else f', {len(air)} FLOATING region(s)'}")
     print(f"gauge center {CENTER_Z:.0f} mm above the sled's underside, "
           f"bottom edge {SLED_T + GAUGE_GAP:.0f} mm up; flat pads, {ARM_T_TOP:.0f} mm across the top")
     print(f"front rail {front_rail():.1f} mm wide; the arms end {front_rail() + GAUGE_Y - ARM_DEPTH / 2:.1f} mm "
