@@ -8,6 +8,8 @@ different numbers at the top of `case.py`.
 |---|---|
 | `stl/case_front` | Shell with a front lip that holds the glass |
 | `stl/case_back_battery_magnet` | Back cover with a bay for an 802525 (400 mAh, 8×25×25 mm) LiPo and pockets for two 12×2 mm mounting magnets |
+| `stl/case_back_slim` | Plain back cover: no battery bay, no magnet pockets. For mounts that attach to the back another way |
+| `stl/sled` | Frame that drops into the console tray's well, from `sled.py`. Confirmed to fit a 2025 Outback |
 
 Each part is written as both `.3mf` and `.stl`. Load the **3MF** if your
 slicer offers the choice: it states millimeters, so nothing can import at the

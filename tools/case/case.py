@@ -129,19 +129,23 @@ def front_shell():
     return shell
 
 
-def back_cover():
+def back_cover(bay=BATTERY_BAY, magnets=True):
+    """Back cover. `bay` adds depth for the battery; `magnets` cuts the two
+    mounting pockets (the dock carries the gauge instead, so it uses neither)."""
     rim = CUP_LEN
-    inner = rim + BATTERY_BAY   # inside face of the floor; the battery lies on it
+    inner = rim + bay           # inside face of the floor; the battery lies on it
     back = inner + MAGNET_FLOOR
 
     cover = cyl(MAGNET_FLOOR, R_OUT, inner)
-    cover += cyl(BATTERY_BAY, R_OUT, rim) - cyl(BATTERY_BAY, ARC_R_OUT, rim)
+    if bay:
+        cover += cyl(bay, R_OUT, rim) - cyl(bay, ARC_R_OUT, rim)
     for deg, half in ARCS:
         cover += sector(ARC_R_IN, ARC_R_OUT, deg, half, GLASS_BACK + FOAM, inner + 0.01)
         cover -= radial_hole(1.7, deg, LOCK_SCREW_Z, ARC_R_IN - 1)  # M2 self-tapping pilot
 
-    for x in (-MAGNET_X, MAGNET_X):
-        cover -= cyl(MAGNET_POCKET + 1, MAGNET_D / 2 + 0.15, back - MAGNET_POCKET, x=x)
+    if magnets:
+        for x in (-MAGNET_X, MAGNET_X):
+            cover -= cyl(MAGNET_POCKET + 1, MAGNET_D / 2 + 0.15, back - MAGNET_POCKET, x=x)
 
     for deg in (30, 150, 210, 330):                                 # vents, clear of the magnets
         cover -= sector(18.5, 20.5, deg, 14, inner - 1, back + 1)
@@ -235,10 +239,15 @@ def write_3mf(solid, path, name):
     body += [f'<triangle v1="{a}" v2="{b}" v3="{c}"/>' for a, b, c in tris]
     body.append('</triangles></mesh></object></resources><build><item objectid="1"/></build></model>')
 
+    # Fixed timestamps keep the zip byte-identical when nothing changed, so
+    # regenerating doesn't show up as a diff.
+    def entry(name):
+        return zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
+
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("[Content_Types].xml", CONTENT_TYPES)
-        z.writestr("_rels/.rels", RELS)
-        z.writestr("3D/3dmodel.model", "".join(body))
+        z.writestr(entry("[Content_Types].xml"), CONTENT_TYPES)
+        z.writestr(entry("_rels/.rels"), RELS)
+        z.writestr(entry("3D/3dmodel.model"), "".join(body))
 
 
 def print_pose(solid, flip=False):
