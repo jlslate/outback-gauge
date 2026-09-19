@@ -38,6 +38,7 @@ CLEAR = 1.5           # gap to the well walls, so it drops in without forcing
 SLED_LEN = 149.0      # runs the depth of the well and a little past the mouth
 SLED_T = 3.0
 SLED_RAIL = 11.0      # width of the frame rails
+FRONT_MARGIN = 2.0    # solid front rail, this far past the back of the arms
 
 # ---- the cradle --------------------------------------------------------------
 GAUGE_GAP = 8.0       # bottom of the case above the sled's top face
@@ -58,6 +59,11 @@ MAGNET_POCKET = case.MAGNET_T + case.MAGNET_ADHESIVE + 0.1
 CENTER_Z = SLED_T + GAUGE_GAP + case.R_OUT     # case center above the sled's underside
 
 
+def front_rail():
+    """Wide enough that both arms sit entirely on the sled's front rail."""
+    return -GAUGE_Y + ARM_DEPTH / 2 + FRONT_MARGIN
+
+
 def _trapezoid(half_front, half_rear, length):
     return CrossSection([[(-half_front, 0), (-half_rear, -length), (half_rear, -length), (half_front, 0)]])
 
@@ -69,8 +75,12 @@ def sled():
     half_r = half_f - taper * SLED_LEN
     frame = _trapezoid(half_f, half_r, SLED_LEN).extrude(SLED_T)
 
-    rail, rib = SLED_RAIL, 12.0
-    inner = _trapezoid(half_f - rail, half_r - rail, SLED_LEN - 2 * rail).translate([0, -rail])
+    # The front rail is widened to reach past the back of the arms, so each one
+    # stands on solid material all the way instead of overhanging a window.
+    rail, rib, front = SLED_RAIL, 12.0, front_rail()
+    at = lambda y: half_f - taper * y                      # half width, y back from the mouth
+    inner = _trapezoid(at(front) - rail, at(SLED_LEN - rail) - rail,
+                       SLED_LEN - rail - front).translate([0, -front])
     windows = inner.extrude(SLED_T + 2).translate([0, 0, -1])
     windows -= box(-rib / 2, rib / 2, -SLED_LEN, 0, -1, SLED_T + 1)      # center rib
     windows -= box(-half_f, half_f, -SLED_LEN / 2 - rib / 2, -SLED_LEN / 2 + rib / 2, -1, SLED_T + 1)
@@ -128,8 +138,14 @@ def cradle():
 
 
 def check(part):
-    """The case has to drop in, and the plug has to clear the gap between arms."""
+    """The case has to drop in, the plug has to clear the gap between arms, and
+    the arms have to stand on solid sled."""
     ok = True
+    under = box(-case.R_OUT - 20, case.R_OUT + 20, GAUGE_Y - ARM_DEPTH / 2, GAUGE_Y + ARM_DEPTH / 2, 0, SLED_T)
+    solid = (part ^ under).volume()
+    full = under.volume() - (_bore(case.R_OUT + ARM_FIT) ^ under).volume()
+    print(f"  sled under the arms: {solid / full * 100:5.1f}% solid")
+    ok &= solid / full > 0.999
     v = (part ^ _bore(case.R_OUT)).volume()
     print(f"  case in the cradle: overlap {v:6.3f} mm^3")
     ok &= v < 0.01
@@ -158,6 +174,8 @@ def main():
               f"{solid.volume()/1000:.0f} cm3, {len(solid.decompose())} piece(s)")
     print(f"gauge center {CENTER_Z:.0f} mm above the sled's underside, "
           f"bottom edge {SLED_T + GAUGE_GAP:.0f} mm up; flat pads, {ARM_T_TOP:.0f} mm across the top")
+    print(f"front rail {front_rail():.1f} mm wide; the arms end {front_rail() + GAUGE_Y - ARM_DEPTH / 2:.1f} mm "
+          f"short of its back edge")
     if not fits:
         raise SystemExit("clearance check failed")
 
