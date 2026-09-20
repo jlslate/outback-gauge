@@ -111,7 +111,10 @@ MAGNET_POCKET = MAGNET_T + MAGNET_STANDOFF + 0.1
 # in the bore diameter itself, which is a perimeter the slicer follows exactly
 # -- a thin ledge or collar inside the bore is narrower than one extrusion and
 # simply does not get printed.
-MAGNET_PRESS = 0.0          # radial: seat diameter is 2 x (MAGNET_D/2 + this)
+MAGNET_PRESS = -0.10        # radial: seat diameter is 2 x (MAGNET_D/2 + this).
+                            # -0.10 is an 11.80 mm seat, found with magnet_test
+                            # on a 12.0 mm disc: goes in with a gentle tap and
+                            # does not come out by hand.
 MAGNET_CLEAR = 0.15         # radial clearance in the loose part in front of it
 MAGNET_LEADIN = 0.3         # cone at the mouth of the seat, so it starts square
 
@@ -357,17 +360,23 @@ def check(parts):
     return ok
 
 
-def floating(posed, layer=0.2):
+def floating(posed, layer=0.2, nozzle=0.4):
     """Regions that begin in mid-air as the part prints, layer by layer. These
     are what a slicer flags as floating and asks to support; an overhang that
-    grows off a wall is fine, an island is not."""
+    grows off a wall is fine, an island is not.
+
+    Anything smaller than one extrusion square is ignored: a slicer cannot lay
+    down a bead that small, so it drops the region instead of printing it in
+    the air. At this scale the mesh's own faceting throws off slivers of a few
+    hundredths of a mm^2 where a bore breaks out of a curved wall."""
+    floor = nozzle * nozzle
     bb = posed.bounding_box()
     out, prev, z = [], None, bb[2] + layer / 2
     while z < bb[5]:
         cs = posed.slice(z)
         if prev is not None:
             for comp in cs.decompose():
-                if comp.area() > 0.02 and (comp ^ prev).area() < 0.01 * comp.area():
+                if comp.area() > floor and (comp ^ prev).area() < 0.01 * comp.area():
                     out.append((z - bb[2], comp.area()))
         prev, z = cs, z + layer
     return out

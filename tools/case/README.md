@@ -13,7 +13,7 @@ nothing is stuck to the car and the tray still lifts out.
 | `stl/case_front` | Shell that holds the glass, with magnet pockets in its side wall at 240° and 300° and the bayonet grooves for the back | `case.py` |
 | `stl/case_back_slim` | Back cover: three bayonet lugs, no magnet pockets | `sled.py` |
 | `stl/sled` | Tray sled with the two cradle arms | `sled.py` |
-| `stl/magnet_test` | Four test pockets for dialling in the magnet press fit | `magnet_test.py` |
+| `stl/magnet_test` | Test pockets for dialling in the magnet press fit | `magnet_test.py` |
 
 Each part is written as both `.3mf` and `.stl`. Load the **3MF** if your
 slicer offers the choice: it states millimeters, so nothing can import at the
@@ -62,10 +62,10 @@ cable, which runs back to the dash port.
 
 - No screws: the back cover twists on. (With `BAYONET = False`, 3 × M2×4
   self-tapping pan-head screws instead.)
-- 4 × N52 12×2 mm disc magnets. **No glue** — each pocket has a collar the
-  disc presses past and then cannot back out of. Peel any adhesive off the
-  backs; it only gets in the way. The pockets are 2.5 mm deep for a 2.0 mm
-  disc on purpose — see `MAGNET_STANDOFF`.
+- 4 × N52 12×2 mm disc magnets. **No glue** — each is pressed into an
+  11.80 mm seat and held by the plastic. Peel any adhesive off the backs; it
+  only gets in the way. The pockets are 2.5 mm deep for a 2.0 mm disc on
+  purpose — see `MAGNET_STANDOFF`.
 - Soft 1/16" (1.6 mm) closed-cell foam weatherstrip, a few cm. It needs to be
   thicker than the 1 mm gap so it squashes and takes up tolerance; dense 1 mm
   mounting tape is too firm.
@@ -114,7 +114,10 @@ keep the tightest one that goes in without a fight, and put its number into
    with something flat — a coin, a socket, the back of a screwdriver. It
    takes a firm push and then goes. Don't hammer it: N52 is brittle and
    chips.
-4. If one won't start, a few turns of sandpaper wrapped round a pen opens the
+4. In the shell the disc ends up 1.3 mm below the outside surface, so tap it
+   home with a drift — a 10 mm socket, a bolt head, a dowel — not a flat
+   block. In the arms it stops 0.5 mm behind the pad face.
+5. If one won't start, a few turns of sandpaper wrapped round a pen opens the
    seat. If one drops straight in, lower `MAGNET_PRESS` and reprint that
    part.
 
