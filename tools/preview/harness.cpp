@@ -5,12 +5,24 @@
 #include "ui.h"
 #include "obd.h"
 #include "imu.h"
+#include "settings.h"
+#include "webconfig.h"
 #include <vector>
 
 static uint32_t now_ms = 10000;
 extern "C" uint32_t millis() { return now_ms; }
 void obd_setFocus(Focus) {}
 void imu_calibrate() {}
+
+// No radio here; the settings page just needs something to lay out.
+static bool apUp = false;
+void webconfig_start() { apUp = true; }
+void webconfig_stop() { apUp = false; }
+bool webconfig_active() { return apUp; }
+uint32_t webconfig_secondsLeft() { return 9 * 60 + 47; }
+const char *webconfig_ssid() { return "OutbackGauge"; }
+const char *webconfig_password() { return "gauge4F2A"; }
+const char *webconfig_url() { return "http://192.168.4.1"; }
 
 static const int N = 412;
 static uint16_t fb[N * N];
@@ -21,7 +33,7 @@ static void flush(lv_disp_drv_t *d, const lv_area_t *a, lv_color_t *px) {
 }
 
 static std::vector<uint8_t> sheet;
-static const int COLS = 3, ROWS = 2, GAP = 24, W = COLS * N + (COLS + 1) * GAP, H = ROWS * N + (ROWS + 1) * GAP;
+static const int COLS = 4, ROWS = 2, GAP = 24, W = COLS * N + (COLS + 1) * GAP, H = ROWS * N + (ROWS + 1) * GAP;
 static void capture(int slot) {
   lv_obj_invalidate(lv_scr_act());
   lv_refr_now(nullptr);
@@ -38,6 +50,7 @@ static void capture(int slot) {
 int main() {
   sheet.assign(W * H * 3, 0);
   for (size_t i = 0; i < sheet.size(); i += 3) { sheet[i] = 38; sheet[i+1] = 40; sheet[i+2] = 44; }
+  settings_load();  // the shim has nothing saved, so this is the factory state
   lv_init();
   static lv_color_t buf[N * 40];
   static lv_disp_draw_buf_t db; lv_disp_draw_buf_init(&db, buf, nullptr, N * 40);
@@ -53,12 +66,16 @@ int main() {
   t.coolantAt = t.intakeAt = t.voltsAt = s;
   Tilt tl; tl.ok = true; tl.calibrated = true; tl.roll = 6; tl.pitch = -3;
 
-  for (int page = 0; page < 5; page++) {
+  for (int page = 0; page < 6; page++) {
     ui_update(t, tl); capture(page); ui_nextPage();
   }
   // Boost page again while still searching for the adapter.
   Telemetry idle; idle.state = ObdState::Scanning;
-  ui_update(idle, tl); capture(5);
+  ui_update(idle, tl); capture(6);
+
+  // Settings page with the access point up, which is the crowded layout.
+  ui_prevPage(); apUp = true;
+  ui_update(t, tl); capture(7);
 
   FILE *f = fopen("gauges.ppm", "wb");
   fprintf(f, "P6\n%d %d\n255\n", W, H); fwrite(sheet.data(), 1, sheet.size(), f); fclose(f);

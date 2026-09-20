@@ -19,8 +19,9 @@ for f in $(find "$LVGL/src" -name '*.c'); do
   [ -f "$o" ] || clang -c -O1 -w $INC "$f" -o "$o"
 done
 clang++ -std=c++17 -O1 $INC -c "$ROOT/src/ui.cpp" -o "$OUT/ui.o"
+clang++ -std=c++17 -O1 $INC -c "$ROOT/src/settings.cpp" -o "$OUT/settings.o"
 clang++ -std=c++17 -O1 $INC -c "$HERE/harness.cpp" -o "$OUT/harness.o"
-clang++ "$OUT"/obj/*.o "$OUT/ui.o" "$OUT/harness.o" -o "$OUT/render"
+clang++ "$OUT"/obj/*.o "$OUT/ui.o" "$OUT/settings.o" "$OUT/harness.o" -o "$OUT/render"
 
 (cd "$OUT" && ./render)
 sips -s format png "$OUT/gauges.ppm" --out "$ROOT/docs/preview.png" >/dev/null

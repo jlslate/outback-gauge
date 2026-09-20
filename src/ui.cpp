@@ -6,6 +6,8 @@
 
 #include "board.h"
 #include "config.h"
+#include "settings.h"
+#include "webconfig.h"
 
 namespace {
 
@@ -13,9 +15,13 @@ constexpr lv_coord_t C = LCD_SIZE / 2;  // screen center
 constexpr uint32_t WHITE = 0xFFFFFF, GREY = 0x9E9E9E, RED = 0xE53935, AMBER = 0xFB8C00, BLUE = 0x1E88E5;
 #define DEG "\xC2\xB0"
 
+// A coloured arc on the scale. One endpoint can be driven by a setting, so the
+// warning band moves when the threshold is edited; the other stays put.
 struct Band {
   float from, to;
-  uint32_t color;
+  uint32_t color = 0;  // 0 means this gauge has no second band
+  float Settings::*live = nullptr;
+  bool liveIsFrom = true;
 };
 
 struct GaugeCfg {
@@ -26,15 +32,16 @@ struct GaugeCfg {
   Focus focus;
 };
 
-const GaugeCfg BOOST = {"BOOST", "psi", "%.1f", -15, 20, 1, 36, 5, {{BOOST_WARN_PSI, 20, RED}, {}}, Focus::Boost};
-const GaugeCfg COOLANT = {"COOLANT", DEG "F", "%.0f", 100, 260, 1, 17, 2, {{100, 140, BLUE}, {COOLANT_WARN_F, 260, RED}}, Focus::Coolant};
-const GaugeCfg INTAKE = {"INTAKE AIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{INTAKE_WARN_F, 200, RED}, {}}, Focus::Intake};
-const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, VOLTS_LOW_WARN, AMBER}, {VOLTS_HIGH_WARN, 16, RED}}, Focus::Volts};
+const GaugeCfg BOOST = {"BOOST", "psi", "%.1f", -15, 20, 1, 36, 5, {{0, 20, RED, &Settings::boostWarnPsi}, {}}, Focus::Boost};
+const GaugeCfg COOLANT = {"COOLANT", DEG "F", "%.0f", 100, 260, 1, 17, 2, {{100, 140, BLUE}, {0, 260, RED, &Settings::coolantWarnF}}, Focus::Coolant};
+const GaugeCfg INTAKE = {"INTAKE AIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 200, RED, &Settings::intakeWarnF}, {}}, Focus::Intake};
+const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts};
 
 struct Gauge {
   const GaugeCfg *cfg = nullptr;
   lv_obj_t *screen = nullptr, *meter = nullptr, *value = nullptr, *status = nullptr;
   lv_meter_indicator_t *needle = nullptr;
+  lv_meter_indicator_t *arcs[2] = {nullptr, nullptr};
   int32_t needleAt = INT32_MIN;
 };
 
@@ -44,10 +51,15 @@ struct TiltPage {
   int shownRoll = INT_MIN, shownPitch = INT_MIN;
 };
 
-enum : uint8_t { PAGE_BOOST, PAGE_COOLANT, PAGE_INTAKE, PAGE_VOLTS, PAGE_TILT, PAGE_COUNT };
+struct SettingsPage {
+  lv_obj_t *screen, *caption, *headline, *caption2, *detail, *url, *foot;
+};
+
+enum : uint8_t { PAGE_BOOST, PAGE_COOLANT, PAGE_INTAKE, PAGE_VOLTS, PAGE_TILT, PAGE_SETTINGS, PAGE_COUNT };
 
 Gauge gauges[PAGE_TILT];
 TiltPage tiltPage;
+SettingsPage settingsPage;
 uint8_t page = PAGE_BOOST;
 float peakBoost = NAN;
 
@@ -122,6 +134,19 @@ void scaledTickLabels(lv_event_t *e) {
   dsc->text = buf;
 }
 
+// Moves each band's arc to where the current thresholds put it.
+void applyBands(Gauge &g) {
+  const Settings &s = settings();
+  for (int i = 0; i < 2; i++) {
+    if (!g.arcs[i]) continue;
+    const Band &b = g.cfg->bands[i];
+    const float from = b.live && b.liveIsFrom ? s.*(b.live) : b.from;
+    const float to = b.live && !b.liveIsFrom ? s.*(b.live) : b.to;
+    lv_meter_set_indicator_start_value(g.meter, g.arcs[i], lroundf(from * g.cfg->mul));
+    lv_meter_set_indicator_end_value(g.meter, g.arcs[i], lroundf(to * g.cfg->mul));
+  }
+}
+
 Gauge makeGauge(const GaugeCfg &cfg) {
   Gauge g;
   g.cfg = &cfg;
@@ -147,12 +172,11 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   lv_meter_set_scale_major_ticks(g.meter, scale, cfg.majorEvery, 4, 22, lv_color_white(), 14);
   lv_meter_set_scale_range(g.meter, scale, cfg.min * cfg.mul, cfg.max * cfg.mul, 270, 135);
 
-  for (const Band &b : cfg.bands) {
-    if (b.from == b.to) continue;
-    lv_meter_indicator_t *arc = lv_meter_add_arc(g.meter, scale, 8, lv_color_hex(b.color), 0);
-    lv_meter_set_indicator_start_value(g.meter, arc, lroundf(b.from * cfg.mul));
-    lv_meter_set_indicator_end_value(g.meter, arc, lroundf(b.to * cfg.mul));
+  for (int i = 0; i < 2; i++) {
+    if (!cfg.bands[i].color) continue;
+    g.arcs[i] = lv_meter_add_arc(g.meter, scale, 8, lv_color_hex(cfg.bands[i].color), 0);
   }
+  applyBands(g);
 
   g.needle = lv_meter_add_needle_line(g.meter, scale, 6, lv_color_hex(0xFF6D00), -24);
   lv_meter_set_indicator_value(g.meter, g.needle, cfg.min * cfg.mul);
@@ -237,21 +261,64 @@ void updateTilt(const Tilt &t) {
   p.pts[1] = {(lv_coord_t)(cx + dx * half), (lv_coord_t)(cy + dy * half)};
   lv_line_set_points(p.horizon, p.pts, 2);
 
+  const float warn = settings().tiltWarnDeg;
   char buf[12];
   snprintf(buf, sizeof buf, "%+d" DEG, roll);
   setText(p.roll, buf);
-  setColor(p.roll, abs(roll) >= TILT_WARN_DEG ? RED : WHITE);
+  setColor(p.roll, abs(roll) >= warn ? RED : WHITE);
   snprintf(buf, sizeof buf, "%+d" DEG, pitch);
   setText(p.pitch, buf);
-  setColor(p.pitch, abs(pitch) >= TILT_WARN_DEG ? RED : WHITE);
+  setColor(p.pitch, abs(pitch) >= warn ? RED : WHITE);
+}
+
+// ---- settings page ---------------------------------------------------------
+
+void makeSettings() {
+  SettingsPage &p = settingsPage;
+  p.screen = newScreen();
+  lv_label_set_text(label(p.screen, &lv_font_montserrat_20, GREY, 0, -120), "SETTINGS");
+  p.caption = label(p.screen, &lv_font_montserrat_14, GREY, 0, -74);
+  p.headline = label(p.screen, &lv_font_montserrat_28, WHITE, 0, -40);
+  p.caption2 = label(p.screen, &lv_font_montserrat_14, GREY, 0, 4);
+  p.detail = label(p.screen, &lv_font_montserrat_28, WHITE, 0, 36);
+  p.url = label(p.screen, &lv_font_montserrat_20, BLUE, 0, 82);
+  p.foot = label(p.screen, &lv_font_montserrat_14, GREY, 0, 122);
+}
+
+void updateSettings() {
+  SettingsPage &p = settingsPage;
+  if (!webconfig_active()) {
+    setText(p.caption, "");
+    setText(p.headline, "Wi-Fi off");
+    setText(p.caption2, "");
+    setText(p.detail, "");
+    setText(p.url, "");
+    setText(p.foot, "Press and hold to start");
+    return;
+  }
+  const uint32_t left = webconfig_secondsLeft();
+  char buf[40];
+  snprintf(buf, sizeof buf, "%u:%02u left - hold to stop", (unsigned)(left / 60), (unsigned)(left % 60));
+  setText(p.caption, "JOIN THIS NETWORK");
+  setText(p.headline, webconfig_ssid());
+  setText(p.caption2, "PASSWORD");
+  setText(p.detail, webconfig_password());
+  setText(p.url, webconfig_url());
+  setText(p.foot, buf);
 }
 
 // ---- paging ----------------------------------------------------------------
 
+lv_obj_t *screenFor(uint8_t p) {
+  if (p == PAGE_TILT) return tiltPage.screen;
+  if (p == PAGE_SETTINGS) return settingsPage.screen;
+  return gauges[p].screen;
+}
+
 void showPage(uint8_t p) {
   page = p;
-  lv_scr_load(p == PAGE_TILT ? tiltPage.screen : gauges[p].screen);
-  obd_setFocus(p == PAGE_TILT ? Focus::None : gauges[p].cfg->focus);
+  lv_scr_load(screenFor(p));
+  obd_setFocus(p < PAGE_TILT ? gauges[p].cfg->focus : Focus::None);
 
   Preferences prefs;
   prefs.begin("gauge", false);
@@ -267,8 +334,10 @@ void ui_init() {
   gauges[PAGE_INTAKE] = makeGauge(INTAKE);
   gauges[PAGE_VOLTS] = makeGauge(VOLTS);
   makeTilt();
+  makeSettings();
   for (uint8_t i = 0; i < PAGE_TILT; i++) addPageDots(gauges[i].screen, i, PAGE_COUNT);
   addPageDots(tiltPage.screen, PAGE_TILT, PAGE_COUNT);
+  addPageDots(settingsPage.screen, PAGE_SETTINGS, PAGE_COUNT);
 
   Preferences prefs;
   prefs.begin("gauge", true);
@@ -278,6 +347,7 @@ void ui_init() {
 }
 
 void ui_update(const Telemetry &t, const Tilt &tilt) {
+  const Settings &s = settings();
   const bool live = t.state == ObdState::Live || t.state == ObdState::Simulated;
   if (live && fresh(t.boostAt) && !(t.boostPsi <= peakBoost)) peakBoost = t.boostPsi;
 
@@ -291,22 +361,30 @@ void ui_update(const Telemetry &t, const Tilt &tilt) {
         snprintf(peak, sizeof peak, t.state == ObdState::Simulated ? "PEAK %.1f  (SIM)" : "PEAK %.1f", peakBoost);
         status = peak;
       }
-      setGauge(gauges[PAGE_BOOST], fresh(t.boostAt), t.boostPsi, t.boostPsi >= BOOST_WARN_PSI, status);
+      setGauge(gauges[PAGE_BOOST], fresh(t.boostAt), t.boostPsi, t.boostPsi >= s.boostWarnPsi, status);
       break;
     }
     case PAGE_COOLANT:
-      setGauge(gauges[PAGE_COOLANT], fresh(t.coolantAt), t.coolantF, t.coolantF >= COOLANT_WARN_F, status);
+      setGauge(gauges[PAGE_COOLANT], fresh(t.coolantAt), t.coolantF, t.coolantF >= s.coolantWarnF, status);
       break;
     case PAGE_INTAKE:
-      setGauge(gauges[PAGE_INTAKE], fresh(t.intakeAt), t.intakeF, t.intakeF >= INTAKE_WARN_F, status);
+      setGauge(gauges[PAGE_INTAKE], fresh(t.intakeAt), t.intakeF, t.intakeF >= s.intakeWarnF, status);
       break;
     case PAGE_VOLTS:
-      setGauge(gauges[PAGE_VOLTS], fresh(t.voltsAt), t.volts, t.volts < VOLTS_LOW_WARN || t.volts > VOLTS_HIGH_WARN, status);
+      setGauge(gauges[PAGE_VOLTS], fresh(t.voltsAt), t.volts, t.volts < s.voltsLowWarn || t.volts > s.voltsHighWarn, status);
       break;
     case PAGE_TILT:
       updateTilt(tilt);
       break;
+    case PAGE_SETTINGS:
+      updateSettings();
+      break;
   }
+}
+
+void ui_applySettings() {
+  for (uint8_t i = 0; i < PAGE_TILT; i++) applyBands(gauges[i]);
+  tiltPage.shownRoll = INT_MIN;  // re-evaluates the tilt colours at the new threshold
 }
 
 void ui_nextPage() {
@@ -322,5 +400,9 @@ void ui_longPress() {
   if (page == PAGE_TILT) {
     imu_calibrate();
     tiltPage.shownRoll = INT_MIN;  // force a redraw at the new zero
+  }
+  if (page == PAGE_SETTINGS) {
+    if (webconfig_active()) webconfig_stop();
+    else webconfig_start();
   }
 }

@@ -5,6 +5,7 @@
 #include "display.h"
 #include "imu.h"
 #include "obd.h"
+#include "settings.h"
 #include "touch.h"
 #include "ui.h"
 
@@ -43,13 +44,14 @@ void pollButton() {
 
 void setup() {
   Serial.begin(115200);
+  settings_load();  // before anything reads a threshold or an orientation flag
   board_init();
   display_init();
   imu_init();
   touch_init();
   ui_init();
   display_refreshNow();  // first frame is drawn before the backlight comes on
-  board_setBacklight(BACKLIGHT_PERCENT);
+  board_setBacklight(settings().backlight);
   obd_start();
 }
 
@@ -58,6 +60,12 @@ void loop() {
   const uint32_t now = millis();
 
   pollButton();
+  // Settings edited over Wi-Fi land on the web task; adopt them here, where
+  // nothing is mid-frame.
+  if (settings_apply()) {
+    board_setBacklight(settings().backlight);
+    ui_applySettings();
+  }
   if (now - lastTouch >= 20) {
     lastTouch = now;
     handleTouch();

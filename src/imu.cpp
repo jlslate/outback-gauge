@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include "config.h"
+#include "settings.h"
 
 namespace {
 
@@ -103,8 +104,8 @@ Tilt imu_tilt() {
   t.ok = addr >= 0 && primed;
   t.calibrated = calibrated;
   if (!t.ok) return t;
-  t.roll = wrap180(rawRoll() - refRoll) * TILT_ROLL_SIGN;
-  t.pitch = (rawPitch() - refPitch) * TILT_PITCH_SIGN;
+  t.roll = wrap180(rawRoll() - refRoll) * settings().rollSign;
+  t.pitch = (rawPitch() - refPitch) * settings().pitchSign;
   return t;
 }
 

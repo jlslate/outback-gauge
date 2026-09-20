@@ -6,6 +6,7 @@
 #include "board.h"
 #include "config.h"
 #include "gesture.h"
+#include "settings.h"
 
 // Protocol ported from Espressif's esp_lcd_touch_spd2010 (esp-iot-solution,
 // Apache-2.0). The controller boots into a BIOS state and has to be walked
@@ -110,17 +111,16 @@ Report poll(uint16_t &x, uint16_t &y, bool &down) {
 GestureDetector gestures;
 
 void orient(uint16_t &x, uint16_t &y) {
-#if TOUCH_SWAP_XY
-  const uint16_t t = x;
-  x = y;
-  y = t;
-#endif
-#if TOUCH_INVERT_X != DISPLAY_ROTATE_180
-  x = LCD_SIZE - 1 - x;
-#endif
-#if TOUCH_INVERT_Y != DISPLAY_ROTATE_180
-  y = LCD_SIZE - 1 - y;
-#endif
+  const Settings &s = settings();
+  if (s.touchSwapXY) {
+    const uint16_t t = x;
+    x = y;
+    y = t;
+  }
+  // Rotating the picture already flips both axes, so an inversion on top of it
+  // cancels out.
+  if (s.touchInvertX != s.rotate180) x = LCD_SIZE - 1 - x;
+  if (s.touchInvertY != s.rotate180) y = LCD_SIZE - 1 - y;
 }
 
 }  // namespace

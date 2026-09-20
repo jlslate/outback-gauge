@@ -29,9 +29,31 @@ press moves to the next page and holding it acts like a long press.
 | Intake air (°F) | PID 0x0F | |
 | Battery (V) | `ATRV`, measured by the adapter; works with the engine off | |
 | Tilt (roll/pitch) | QMI8658 accelerometer | Set current attitude as level |
+| Settings | - | Start/stop the settings Wi-Fi |
 
 The page on screen gets polled as fast as the adapter answers. Everything else
-is polled in rotation every 400 ms. Warning thresholds are in `src/config.h`.
+is polled in rotation every 400 ms.
+
+## Settings over Wi-Fi
+
+Warning thresholds, backlight and the orientation flags are edited from a web
+page the gauge serves itself, so retuning them doesn't need a reflash.
+
+Swipe to the **Settings** page and press and hold. The gauge brings up an access
+point and shows its name, password and address on screen; join it from a phone
+and the form should open on its own, or go to `http://192.168.4.1`. Saved values
+live in NVS and survive a reboot.
+
+The access point is deliberately not always on. Wi-Fi and BLE share the one
+2.4 GHz radio, so leaving it up would cost the OBD link latency every drive for
+no benefit. It shuts itself off ten minutes after the last request; a long press
+stops it sooner.
+
+Everything applies the moment you save except rotating the picture, which LVGL
+only reads when the display driver is registered, so the page offers a reboot
+button for that one. `src/config.h` still holds all of these values, but they
+are now the factory defaults a never-configured gauge starts with — once you
+save, the saved copy wins until you hit "Restore defaults".
 
 ## Build and flash
 
@@ -48,6 +70,15 @@ Bench test without the car or adapter (fake but plausible data):
 pio run -e outback_gauge_sim -t upload
 ```
 
+Just the settings page, on any ESP32-S3 with Wi-Fi — a SenseCAP Indicator, a
+bare devkit — with no display, touch, IMU or BLE compiled in. Lets the form be
+used and debugged before the gauge hardware exists; every save comes back out
+over serial:
+
+```bash
+pio run -e webconfig_probe -t upload && pio device monitor
+```
+
 If an upload won't start, hold BOOT while plugging in USB.
 
 Serial output (`pio device monitor`) logs the adapter it finds, its banner,
@@ -58,6 +89,10 @@ which BLE service it picked, and battery voltage every 10 s.
 `tools/preview/build.sh` compiles `src/ui.cpp` and LVGL with clang and renders
 every page to `docs/preview.png`, so layout changes can be checked without
 flashing. Run `pio run` once first so LVGL is downloaded.
+
+`tools/webpreview/build.sh` does the same for the settings form: it compiles the
+real `src/webpage.cpp` and writes `docs/settings-page.html` to open in a browser.
+Needs no LVGL and no board.
 
 ## Test gesture detection on a Mac
 
@@ -89,14 +124,28 @@ clang++ -std=c++17 -Isrc tools/gesture-test/gesture_test.cpp -o /tmp/gesture_tes
   finger. `src/gesture.h` turns those reports into taps, long presses and swipes.
 - `src/board.cpp`: power latch (GPIO7), TCA9554 expander for the panel and
   touch resets, backlight PWM (GPIO5), battery ADC (GPIO8, ×3 divider).
+- `src/settings.cpp`: the runtime copy of everything the web page can change,
+  stored in NVS as one versioned blob. The web server runs on its own task, so
+  it stages a whole struct and the UI task swaps it in between frames rather
+  than editing fields underneath a running redraw.
+- `src/webconfig.cpp`: the access point, a captive-portal DNS responder and the
+  HTTP server, all on a task of their own. Request handling is a far deeper call
+  path than anything else here; sharing the loop stack with it is what corrupted
+  the display in `sensecap-camera-viewer`. Stopping the AP also drops the Wi-Fi
+  stack so its RAM goes back to BLE and LVGL.
+- `src/webpage.cpp`: the form's markup, split from the server so the Mac
+  renderer can build it.
 
 ## Still to verify on hardware
 
-- **Screen orientation**: set `DISPLAY_ROTATE_180` in `src/config.h` if it's upside down.
-- **Tilt direction**: flip `TILT_ROLL_SIGN` / `TILT_PITCH_SIGN` if it leans the wrong way.
+All of the orientation guesses below are checkboxes on the settings page now, so
+they can be flipped while the board is in your hand instead of over a reflash.
+
+- **Screen orientation**: tick "Rotate picture 180°" if it's upside down (needs a reboot).
+- **Tilt direction**: tick "Invert tilt roll" / "Invert tilt pitch" if it leans the wrong way.
 - **Touch**: serial should print `[TOUCH] SPD2010...` at boot. If swiping left goes
-  to the previous page, flip `TOUCH_INVERT_X`; if swipes don't register at all
-  but taps do, try `TOUCH_SWAP_XY`.
+  to the previous page, tick "Invert touch X"; if swipes don't register at all
+  but taps do, try "Swap touch X and Y".
 - **OBDLink CX pairing**: assumed to need no PIN or bonding. If it connects
   but never answers, it may need BLE security enabled.
 - **IMU address**: probes 0x6B then 0x6A.
