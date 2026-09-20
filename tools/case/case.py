@@ -106,6 +106,12 @@ MAGNET_STANDOFF = 0.4       # deliberate: it sets how far each disc sits below
 MAGNET_X = 10.0             # pocket centers at x = +/-10 (left and right)
 MAGNET_FLOOR = 3.2          # back cover floor; leaves 0.7 mm under each pocket
 MAGNET_POCKET = MAGNET_T + MAGNET_STANDOFF + 0.1
+# The discs snap in and are held by the plastic, not by glue: the bore is a
+# clearance fit, but a collar just in front of the disc closes in on it, so it
+# has to be pressed past and cannot back out. The press is only SNAP_T long.
+MAGNET_CLEAR = 0.15         # radial clearance in the bore the disc rests in
+MAGNET_SNAP = 0.20          # how far the collar closes in, on the radius
+MAGNET_SNAP_T = 0.2         # straight part of the collar; a 0.2 lead-in cone too
 
 # The sled's cradle arms hold the shell by two magnets set into its side wall,
 # at the angles where the arms touch (0 deg = 3 o'clock, counter-clockwise).
@@ -145,6 +151,16 @@ def radial(solid_along_x, deg, z):
     return solid_along_x.rotate([0, 0, deg]).translate([0, 0, z])
 
 
+def stack(x0, segments, seg=64):
+    """Cylinders end to end along +x from x0, as (length, r_start, r_end)."""
+    out, x = None, x0
+    for ln, r0, r1 in segments:
+        c = Manifold.cylinder(ln, r0, r1, seg).translate([0, 0, x])
+        out = c if out is None else out + c
+        x += ln
+    return out.rotate([0, 90, 0])
+
+
 def radial_hole(d, deg, z, r0=0.0, r1=40.0):
     return radial(Manifold.cylinder(r1 - r0, d / 2, d / 2, 32).rotate([0, 90, 0]).translate([r0, 0, 0]), deg, z)
 
@@ -172,11 +188,18 @@ def button_slots():
 
 
 def magnet_pockets():
+    """Pockets in the shell wall. The disc goes in from outside, so the collar
+    sits on the far side of it from the floor."""
+    bore = MAGNET_D / 2 + MAGNET_CLEAR
+    snap = bore - MAGNET_SNAP
+    floor = R_OUT - MAGNET_POCKET - SIDE_POCKET_SINK
+    rest = R_OUT + 0.5 - floor - MAGNET_T - 0.1 - MAGNET_SNAP_T - 0.2
     out = None
     for deg in SIDE_MAGNET_DEG:
-        pocket = Manifold.cylinder(MAGNET_POCKET + SIDE_POCKET_SINK + 1, MAGNET_D / 2 + 0.15,
-                                   MAGNET_D / 2 + 0.15, 64)
-        pocket = pocket.rotate([0, 90, 0]).translate([R_OUT - MAGNET_POCKET - SIDE_POCKET_SINK, 0, 0])
+        pocket = stack(floor, [(MAGNET_T + 0.1, bore, bore),   # where the disc rests
+                               (MAGNET_SNAP_T, snap, snap),    # the collar it snaps behind
+                               (0.2, snap, bore),              # lead-in for pressing it past
+                               (rest, bore, bore)])
         pocket = radial(pocket, deg, SIDE_MAGNET_Z)
         out = pocket if out is None else out + pocket
     return out

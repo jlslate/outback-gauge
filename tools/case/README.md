@@ -61,10 +61,10 @@ cable, which runs back to the dash port.
 
 - No screws: the back cover twists on. (With `BAYONET = False`, 3 × M2×4
   self-tapping pan-head screws instead.)
-- 4 × N52 12×2 mm disc magnets and thin superglue: two in the shell's side
-  wall, two facing them in the sled's arms. The pockets are 2.5 mm deep for a
-  2.0 mm disc on purpose — see `MAGNET_STANDOFF`. Leave whatever adhesive is
-  on the back in place; it tacks the disc while the glue sets.
+- 4 × N52 12×2 mm disc magnets. **No glue** — each pocket has a collar the
+  disc presses past and then cannot back out of. Peel any adhesive off the
+  backs; it only gets in the way. The pockets are 2.5 mm deep for a 2.0 mm
+  disc on purpose — see `MAGNET_STANDOFF`.
 - Soft 1/16" (1.6 mm) closed-cell foam weatherstrip, a few cm. It needs to be
   thicker than the 1 mm gap so it squashes and takes up tolerance; dense 1 mm
   mounting tape is too firm.
@@ -84,24 +84,25 @@ cable, which runs back to the dash port.
 ## Magnet mounting
 
 Four magnets in four pockets: two in the shell's side wall at 240° and 300°,
-two facing them in the sled's arms. Nothing is stuck to the car.
+two facing them in the sled's arms. Nothing is stuck to the car, and nothing
+is glued.
 
-Adhesive magnets all face the same way out of the pack, so the pairs have to
-be worked out before any glue is involved — a pair that repels pushes the
-gauge off its cradle, and a glued N52 will chip before it comes out.
+Each pocket is a 12.3 mm bore with an 11.9 mm collar across its mouth. The
+disc presses past the collar, which is only 0.2 mm long with a cone leading
+into it, and sits behind it. Superglue does not hold these — cyanoacrylate
+gets no grip on the nickel plating — so the plastic does the work instead.
 
-1. Snap the magnets together in two pairs, tape still on, so each pair
-   attracts. Mark the outward face of each with a pen.
-2. Press one magnet of each pair into a shell pocket, VHB and all, with the
-   marked face out. The 12.3 mm pocket locates the 12 mm disc.
-3. Press its partner into the arm pocket facing it, again marked face out.
-4. Run a little **thin** superglue around the rim of each disc and let it
-   wick into the joint between the magnet and the pocket wall. Bonding the
-   circumference is what resists the disc being pulled out; glue smeared
-   behind the magnet does little and will not stick to the VHB anyway.
-5. Keep the superglue away from the screen — the vapour blooms white on glass
-   and plastic. Do the shell's pair before the board goes in, and give it an
-   hour.
+1. Snap the magnets together in two pairs so each pair attracts, and mark the
+   outward face of each with a pen. Get a pair backwards and the gauge pushes
+   itself off the cradle.
+2. Peel any adhesive off the backs.
+3. Start each disc square in its pocket, marked face out, and press it in
+   with something flat — a coin, a socket, the back of a screwdriver. It
+   takes a firm push and then goes. Don't hammer it: N52 is brittle and
+   chips.
+4. If one won't start, a few turns of sandpaper wrapped round a pen opens the
+   collar. If one drops straight in, raise `MAGNET_SNAP` and reprint that
+   part.
 
 The gauge then drops into the cradle and the two magnets pull it against the
 pads. The arms carry its weight in the V between them; the magnets only stop
@@ -121,6 +122,9 @@ Everything is set by the constants at the top of `case.py`:
 - Gauge too hard or too easy to lift off the cradle: `MAGNET_STANDOFF` (bigger
   is weaker). Two N52 12×2 pairs in contact would be several kilos, enough to
   pull an arm off the sled; the ~2 mm gap is deliberate
+- Magnets drop into their pockets, or won't press in: `MAGNET_SNAP`, how far
+  the collar closes in on the disc (0.20 mm on the radius, so an 11.9 mm
+  collar). `MAGNET_CLEAR` sets the bore behind it
 - Magnets standing proud of the shell: `SIDE_POCKET_SINK` (a flat disc in a
   round pocket sits above a curved surface unless the pocket is sunk)
 - Gauge height, arm size and the tray well: the constants at the top of `sled.py`

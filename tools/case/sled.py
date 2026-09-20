@@ -25,7 +25,7 @@ import math
 import pathlib
 
 import case
-from case import box, cyl, floating, print_pose, write_3mf, write_stl
+from case import box, cyl, floating, print_pose, stack, write_3mf, write_stl
 from manifold3d import CrossSection, Manifold
 
 # ---- the tray well -----------------------------------------------------------
@@ -55,7 +55,6 @@ ARM_T_TOP = 6.0
 ARM_UP = 10.0         # how far the pad runs up the case from the magnet
 ARM_DOWN = 7.5        # and down toward the gap at the bottom; keeps the 12.3 mm
                       # magnet inside the pad, which is centered on the tangent
-MAGNET_POCKET = case.MAGNET_T + case.MAGNET_STANDOFF + 0.1
 
 CENTER_Z = SLED_T + GAUGE_GAP + case.R_OUT     # case center above the sled's underside
 
@@ -130,10 +129,16 @@ def cradle():
         part = arm if part is None else part + arm
     part -= _bore(case.R_OUT + ARM_FIT)               # keep the pads off the case
 
-    for deg in case.SIDE_MAGNET_DEG:                  # pockets facing the shell's magnets
-        pocket = Manifold.cylinder(MAGNET_POCKET + 1, case.MAGNET_D / 2 + 0.15,
-                                   case.MAGNET_D / 2 + 0.15, 64)
-        pocket = pocket.rotate([0, 90, 0]).translate([case.R_OUT + ARM_FIT - 1, 0, 0])
+    # Pockets facing the shell's magnets. The disc goes in from the pad face,
+    # so the collar sits at the mouth and the disc snaps in behind it.
+    bore = case.MAGNET_D / 2 + case.MAGNET_CLEAR
+    snap = bore - case.MAGNET_SNAP
+    face = case.R_OUT + ARM_FIT
+    for deg in case.SIDE_MAGNET_DEG:
+        pocket = stack(face - 1, [(1.0, bore, bore),                    # clear of the case
+                                  (0.2, bore, snap),                    # lead-in
+                                  (case.MAGNET_SNAP_T, snap, snap),     # the collar
+                                  (case.MAGNET_T + 0.2, bore, bore)])   # where the disc rests
         part -= _upright(pocket.rotate([0, 0, deg]))
     return part
 
