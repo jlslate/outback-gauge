@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <DNSServer.h>
+#include <esp_mac.h>
 #include <WebServer.h>
 #include <WiFi.h>
 
@@ -137,9 +138,11 @@ void webconfig_start() {
   }
 
   WiFi.mode(WIFI_AP);
-  uint8_t mac[6] = {0};
-  WiFi.softAPmacAddress(mac);
   // Per-device but stable, so it can be printed on the gauge and not change.
+  // Straight from efuse: WiFi.softAPmacAddress() has no interface to read yet
+  // this early and hands back all zeros.
+  uint8_t mac[6] = {0};
+  esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
   snprintf(password, sizeof password, "gauge%02X%02X", mac[4], mac[5]);
 
   WiFi.softAPConfig(AP_IP, AP_IP, IPAddress(255, 255, 255, 0));
