@@ -42,7 +42,7 @@ FRONT_MARGIN = 2.0    # solid front rail, this far past the back of the arms
 
 # ---- the cradle --------------------------------------------------------------
 GAUGE_GAP = 8.0       # bottom of the case above the sled's top face
-GAUGE_X = -22.5       # sideways offset from the sled centerline
+GAUGE_X = 22.5        # sideways offset from the sled centerline
 # Case mid-depth, back from the sled's front edge: half the case's depth, so
 # the glass ends up flush with the front of the sled.
 GAUGE_Y = -(case.CUP_LEN + case.MAGNET_FLOOR) / 2
