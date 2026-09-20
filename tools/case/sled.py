@@ -131,14 +131,13 @@ def cradle():
 
     # Pockets facing the shell's magnets. The disc goes in from the pad face,
     # so the collar sits at the mouth and the disc snaps in behind it.
-    bore = case.MAGNET_D / 2 + case.MAGNET_CLEAR
-    snap = bore - case.MAGNET_SNAP
+    seat = case.MAGNET_D / 2 + case.MAGNET_PRESS
+    free = case.MAGNET_D / 2 + case.MAGNET_CLEAR
     face = case.R_OUT + ARM_FIT
     for deg in case.SIDE_MAGNET_DEG:
-        pocket = stack(face - 1, [(1.0, bore, bore),                    # clear of the case
-                                  (0.2, bore, snap),                    # lead-in
-                                  (case.MAGNET_SNAP_T, snap, snap),     # the collar
-                                  (case.MAGNET_T + 0.2, bore, bore)])   # where the disc rests
+        pocket = stack(face - 1, [(1.0, free, free),                        # clear of the case
+                                  (case.MAGNET_LEADIN, free, seat),         # cone into the seat
+                                  (case.MAGNET_T + 0.2, seat, seat)])       # pressed in here
         part -= _upright(pocket.rotate([0, 0, deg]))
     return part
 

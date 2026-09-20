@@ -106,12 +106,14 @@ MAGNET_STANDOFF = 0.4       # deliberate: it sets how far each disc sits below
 MAGNET_X = 10.0             # pocket centers at x = +/-10 (left and right)
 MAGNET_FLOOR = 3.2          # back cover floor; leaves 0.7 mm under each pocket
 MAGNET_POCKET = MAGNET_T + MAGNET_STANDOFF + 0.1
-# The discs snap in and are held by the plastic, not by glue: the bore is a
-# clearance fit, but a collar just in front of the disc closes in on it, so it
-# has to be pressed past and cannot back out. The press is only SNAP_T long.
-MAGNET_CLEAR = 0.15         # radial clearance in the bore the disc rests in
-MAGNET_SNAP = 0.20          # how far the collar closes in, on the radius
-MAGNET_SNAP_T = 0.2         # straight part of the collar; a 0.2 lead-in cone too
+# The discs are held by the plastic, not by glue: the seat they end up in is
+# an interference fit and they are pressed into it. The interference has to be
+# in the bore diameter itself, which is a perimeter the slicer follows exactly
+# -- a thin ledge or collar inside the bore is narrower than one extrusion and
+# simply does not get printed.
+MAGNET_PRESS = 0.0          # radial: seat diameter is 2 x (MAGNET_D/2 + this)
+MAGNET_CLEAR = 0.15         # radial clearance in the loose part in front of it
+MAGNET_LEADIN = 0.3         # cone at the mouth of the seat, so it starts square
 
 # The sled's cradle arms hold the shell by two magnets set into its side wall,
 # at the angles where the arms touch (0 deg = 3 o'clock, counter-clockwise).
@@ -190,16 +192,15 @@ def button_slots():
 def magnet_pockets():
     """Pockets in the shell wall. The disc goes in from outside, so the collar
     sits on the far side of it from the floor."""
-    bore = MAGNET_D / 2 + MAGNET_CLEAR
-    snap = bore - MAGNET_SNAP
+    seat = MAGNET_D / 2 + MAGNET_PRESS
+    free = MAGNET_D / 2 + MAGNET_CLEAR
     floor = R_OUT - MAGNET_POCKET - SIDE_POCKET_SINK
-    rest = R_OUT + 0.5 - floor - MAGNET_T - 0.1 - MAGNET_SNAP_T - 0.2
+    rest = R_OUT + 0.5 - floor - MAGNET_T - 0.1 - MAGNET_LEADIN
     out = None
     for deg in SIDE_MAGNET_DEG:
-        pocket = stack(floor, [(MAGNET_T + 0.1, bore, bore),   # where the disc rests
-                               (MAGNET_SNAP_T, snap, snap),    # the collar it snaps behind
-                               (0.2, snap, bore),              # lead-in for pressing it past
-                               (rest, bore, bore)])
+        pocket = stack(floor, [(MAGNET_T + 0.1, seat, seat),    # the disc is pressed in here
+                               (MAGNET_LEADIN, seat, free),     # cone into the seat
+                               (rest, free, free)])             # loose, out to the surface
         pocket = radial(pocket, deg, SIDE_MAGNET_Z)
         out = pocket if out is None else out + pocket
     return out

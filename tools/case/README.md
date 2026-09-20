@@ -13,6 +13,7 @@ nothing is stuck to the car and the tray still lifts out.
 | `stl/case_front` | Shell that holds the glass, with magnet pockets in its side wall at 240° and 300° and the bayonet grooves for the back | `case.py` |
 | `stl/case_back_slim` | Back cover: three bayonet lugs, no magnet pockets | `sled.py` |
 | `stl/sled` | Tray sled with the two cradle arms | `sled.py` |
+| `stl/magnet_test` | Four test pockets for dialling in the magnet press fit | `magnet_test.py` |
 
 Each part is written as both `.3mf` and `.stl`. Load the **3MF** if your
 slicer offers the choice: it states millimeters, so nothing can import at the
@@ -87,10 +88,23 @@ Four magnets in four pockets: two in the shell's side wall at 240° and 300°,
 two facing them in the sled's arms. Nothing is stuck to the car, and nothing
 is glued.
 
-Each pocket is a 12.3 mm bore with an 11.9 mm collar across its mouth. The
-disc presses past the collar, which is only 0.2 mm long with a cone leading
-into it, and sits behind it. Superglue does not hold these — cyanoacrylate
-gets no grip on the nickel plating — so the plastic does the work instead.
+Each pocket is a loose bore that necks down to an interference seat, with a
+cone between them. The disc goes in easily for the first millimetre and is
+then pressed the last 2 mm into the seat, where the plastic grips it.
+Superglue does not hold these — cyanoacrylate gets no grip on the nickel
+plating — so the plastic does the work instead.
+
+The interference is in the bore diameter, not in a lip or a collar. A ledge
+inside a bore that is thinner than one extrusion width does not get printed
+at all, which is a good way to produce a pocket that looks right on screen
+and holds nothing.
+
+**Print `magnet_test` first.** How a bore comes out varies by printer by more
+than the fit tolerance, so a guess costs an hour of shell. The coupon has
+four pockets bored sideways, the way the real ones print, at 12.10, 12.00,
+11.90 and 11.80 mm, with 1 to 4 ticks above them. Press a magnet into each,
+keep the tightest one that goes in without a fight, and put its number into
+`MAGNET_PRESS`.
 
 1. Snap the magnets together in two pairs so each pair attracts, and mark the
    outward face of each with a pen. Get a pair backwards and the gauge pushes
@@ -101,7 +115,7 @@ gets no grip on the nickel plating — so the plastic does the work instead.
    takes a firm push and then goes. Don't hammer it: N52 is brittle and
    chips.
 4. If one won't start, a few turns of sandpaper wrapped round a pen opens the
-   collar. If one drops straight in, raise `MAGNET_SNAP` and reprint that
+   seat. If one drops straight in, lower `MAGNET_PRESS` and reprint that
    part.
 
 The gauge then drops into the cradle and the two magnets pull it against the
@@ -122,9 +136,8 @@ Everything is set by the constants at the top of `case.py`:
 - Gauge too hard or too easy to lift off the cradle: `MAGNET_STANDOFF` (bigger
   is weaker). Two N52 12×2 pairs in contact would be several kilos, enough to
   pull an arm off the sled; the ~2 mm gap is deliberate
-- Magnets drop into their pockets, or won't press in: `MAGNET_SNAP`, how far
-  the collar closes in on the disc (0.20 mm on the radius, so an 11.9 mm
-  collar). `MAGNET_CLEAR` sets the bore behind it
+- Magnets drop into their pockets, or won't press in: `MAGNET_PRESS`, the
+  radius of the seat relative to the disc. Print `magnet_test` to find it
 - Magnets standing proud of the shell: `SIDE_POCKET_SINK` (a flat disc in a
   round pocket sits above a curved surface unless the pocket is sunk)
 - Gauge height, arm size and the tray well: the constants at the top of `sled.py`
