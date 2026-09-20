@@ -4,7 +4,7 @@ Four pockets in a bar, each a different seat diameter, bored sideways so they
 print the same way the real ones do -- a bore in a vertical wall, which is
 what decides how it comes out. Press a magnet into each and keep the number
 of the tightest one that still goes in without a fight. Ticks above each
-pocket count 1 to 5, left to right.
+pocket count 1 upward, left to right.
 
 Put that seat diameter into MAGNET_PRESS in case.py:
     MAGNET_PRESS = (seat - MAGNET_D) / 2
@@ -17,9 +17,11 @@ import pathlib
 import case
 from case import box, print_pose, stack, write_3mf, write_stl
 
-# Seats either side of the measured disc, so the coupon still brackets the
-# answer if MAGNET_D is a little off.
-SEATS = tuple(round(case.MAGNET_D + d, 2) for d in (0.20, 0.10, 0.00, -0.10, -0.20))
+# Hunting down from a size known to be loose. A 12.30 bore was a slip fit on
+# these discs, so the press fit is somewhere below it; how far below depends
+# on how much this printer undersizes a bore, which is why this is measured
+# and not calculated.
+SEATS = (12.30, 12.20, 12.10, 12.00, 11.90, 11.80)
 PITCH = 18.0
 T = 6.0          # wall thickness, a little over the real 5.5 mm of boss
 H = 16.0

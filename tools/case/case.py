@@ -95,7 +95,7 @@ ENTRY_HALF_DEG = LUG_HALF_DEG + 1.0
 
 # Two 12x2 mm discs sit in pockets in the back's outside face and snap onto a
 # matching pair stuck to the car. Two side by side stop it rotating.
-MAGNET_D, MAGNET_T = 11.0, 2.0   # measured off the discs, not off the listing
+MAGNET_D, MAGNET_T = 12.0, 2.0
 MAGNET_STANDOFF = 0.4       # deliberate: it sets how far each disc sits below
                             # its pocket rim, and so the air gap between the
                             # pair. Two N52 12x2 discs in contact are far
