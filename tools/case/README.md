@@ -73,7 +73,16 @@ cable, which runs back to the dash port.
 ## Assembly
 
 1. Set the four magnets into the shell and the arms (see [Magnet mounting](#magnet-mounting)).
-2. Cut three narrow strips of foam (about 3 mm wide) and stick one on the end of each arc.
+2. Cut three strips of the foam about 3 mm wide and stick one on the **tip**
+   of each arc — the end face that points forward, not the arc's inner or
+   outer side. Two are about 25 mm long and one about 10 mm, and the short
+   strip goes on the short arc. The bottom of the cover has no arc at all,
+   which is how you tell which way round it is: that gap faces the USB-C
+   notch.
+
+   ![Where the foam goes](../../docs/foam-placement.png)
+
+   ![Section through an arc](../../docs/foam-section.png)
 3. Drop the board into the front shell from behind, glass first, turning it
    so the USB-C port lines up with the notch at the bottom. Neither side
    button gets a hole — see [Buttons](#buttons).
@@ -81,6 +90,29 @@ cable, which runs back to the dash port.
    only one rotation fits — press the cover in against the foam, and twist it
    clockwise (seen from the back) about 18° until it clicks past the detents
    and stops.
+
+## Buttons
+
+Neither side button gets a hole, and the two LEDs by the USB-C port are
+sealed in.
+
+**BOOT** was meant to have one. It sits 7° from the 315° magnet pad, which at
+that radius is 3.2 mm — inside the pocket's 5.95 mm — so its slot broke into
+the magnet seat and notched the wall that grips the disc, and the pad filled
+the outer end of the slot back in regardless. Everything BOOT does (short
+press for the next page, hold for the page action) is also a touch gesture.
+
+**PWR** latches the LiPo power path, and this build has no battery on purpose.
+
+Both are reachable with the case off, which is where bench work happens. To
+put a hole back, set `BUTTON_SLOTS` in `case.py` to `(PWR_DEG,)` or
+`(PWR_DEG, BOOT_DEG)`; the angles and the slot size are still measured there.
+
+Neither LED is under software control — there is no LED pin on this board.
+One is the 5 V power indicator; the other belongs to the charger, and
+Waveshare call its state indeterminate with no battery connected, so whatever
+it is doing here means nothing. Sealing them in is no loss: a power light
+glowing inside a gauge pod at night is a nuisance.
 
 ## Magnet mounting
 
