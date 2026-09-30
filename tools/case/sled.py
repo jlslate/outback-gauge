@@ -41,7 +41,8 @@ SLED_RAIL = 11.0      # width of the frame rails
 FRONT_MARGIN = 2.0    # solid front rail, this far past the back of the arms
 
 # ---- the cradle --------------------------------------------------------------
-GAUGE_GAP = 6.0       # bottom of the case above the sled's top face
+GAUGE_GAP = 2.0       # bottom of the case above the sled's top face; it was 6
+                      # while the USB-C plug dropped out of a notch down there
 GAUGE_X = 22.5        # sideways offset from the sled centerline
 # Case mid-depth, back from the sled's front edge: half the case's depth, so
 # the glass ends up flush with the front of the sled.

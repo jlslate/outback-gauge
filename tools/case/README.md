@@ -41,9 +41,9 @@ number at the top of `case.py` and a reprint of the one part.
 wall into the arcs. Both parts have to be regenerated together — a bayonet
 shell will not take a screw cover.
 
-In the sled, the gauge stands square with its bottom edge 8 mm clear, its
-face flush with the sled's front, and its screen center 38 mm above the tray
-floor. The USB-C port points **left** (`USB_DEG` in `case.py`), out of the
+In the sled, the gauge stands square with its bottom edge 5 mm above the sled
+(2 mm above its top face), its face flush with the sled's front, and its
+screen center 32 mm above the sled's underside. The USB-C port points **left** (`USB_DEG` in `case.py`), out of the
 side of the case well clear of the arms, and the cable runs back to the dash
 port. It is turned a quarter from the board's natural bottom-edge position
 because the screen is polarized: with the port down, the picture goes black
