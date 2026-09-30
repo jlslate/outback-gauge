@@ -75,8 +75,8 @@ cable, which runs back to the dash port.
 1. Set the four magnets into the shell and the arms (see [Magnet mounting](#magnet-mounting)).
 2. Cut three narrow strips of foam (about 3 mm wide) and stick one on the end of each arc.
 3. Drop the board into the front shell from behind, glass first, turning it
-   so the USB-C port lines up with the notch at the bottom. PWR then lines up
-   with the small hole on the right side. BOOT has no hole — see below.
+   so the USB-C port lines up with the notch at the bottom. Neither side
+   button gets a hole — see [Buttons](#buttons).
 4. Line the three lugs up with the three channels in the shell's back face —
    only one rotation fits — press the cover in against the foam, and twist it
    clockwise (seen from the back) about 18° until it clicks past the detents
@@ -157,7 +157,7 @@ Everything is set by the constants at the top of `case.py`:
 - Glass loose or tight in the shell: `FIT` (radial clearance, default 0.3 mm, sized for MJF nylon; 0.2 suits a well-tuned FDM printer)
 - Board rattles even with foam, or the cover won't close: `FOAM` (default 1.0 mm)
 - USB-C plug won't reach: `USB_OPENING`
-- Button holes don't line up: `PWR_DEG`, `BOOT_DEG`, `BUTTON_Z`
+- Want a button hole back: `BUTTON_SLOTS`, with `PWR_DEG`, `BOOT_DEG`, `BUTTON_Z`
 - Twist joint too tight, too loose, or the detent too stiff: `BAY_FIT`,
   `BAY_PRELOAD`, `DETENT`; back to screws with `BAYONET = False`
 - Different magnets: `MAGNET_D`, `MAGNET_T`, `MAGNET_X`

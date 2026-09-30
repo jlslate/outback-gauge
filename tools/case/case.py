@@ -41,12 +41,14 @@ STACK = 13.2         # glass front to header pin tips (drawing: 13.20)
 USB_Z = (8.3, 11.4)  # USB-C receptacle, depth range behind the glass front
 BUTTON_Z = 9.0       # PWR/BOOT side switches, depth behind the glass front
 PWR_DEG, BOOT_DEG = 32, -38  # angles seen from the front (0 = 3 o'clock)
-# Only PWR gets a slot. BOOT sits 7 deg from the 315 deg magnet pad, which at
-# this radius is 3.2 mm -- inside the pocket's 5.95 mm -- so its slot did not
-# just end up buried under the pad, it broke into the magnet seat and notched
-# the wall meant to grip the disc. The button is reachable with the case off;
-# every action it has is also a touch gesture.
-BOOT_SLOT = False
+# Neither button gets a hole. BOOT sits 7 deg from the 315 deg magnet pad,
+# which at this radius is 3.2 mm -- inside the pocket's 5.95 mm -- so its slot
+# broke into the magnet seat and notched the wall meant to grip the disc, and
+# the pad filled its outer end in regardless. PWR latches the LiPo power path
+# and there is no battery. Both are reachable with the case off, and every
+# action BOOT has is also a touch gesture. The angles stay measured here in
+# case a later layout wants them back.
+BUTTON_SLOTS = ()            # angles to cut: (), (PWR_DEG,) or (PWR_DEG, BOOT_DEG)
 
 # ---- the case ----------------------------------------------------------------
 LIP = 1.2            # front lip thickness
@@ -212,9 +214,8 @@ def usb_cut():
 def button_slots():
     bw, bh = BUTTON_SLOT
     slot = box(R_BORE - 1, R_OUT + 1, -bw / 2, bw / 2, -bh / 2, bh / 2)
-    degs = (PWR_DEG, BOOT_DEG) if BOOT_SLOT else (PWR_DEG,)
-    cuts = [radial(slot, deg, LIP + BUTTON_Z) for deg in degs]
-    return sum(cuts[1:], cuts[0])
+    cuts = [radial(slot, deg, LIP + BUTTON_Z) for deg in BUTTON_SLOTS]
+    return sum(cuts[1:], cuts[0]) if cuts else Manifold()
 
 
 def magnet_pads():
