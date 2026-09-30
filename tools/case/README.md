@@ -10,7 +10,7 @@ nothing is stuck to the car and the tray still lifts out.
 
 | File | What it is | From |
 |---|---|---|
-| `stl/case_front` | Shell that holds the glass, with blind magnet pockets in its side wall at 240° and 300° and the bayonet grooves for the back | `case.py` |
+| `stl/case_front` | Shell that holds the glass, with magnet pockets in its side wall at 240° and 300° and the bayonet grooves for the back | `case.py` |
 | `stl/case_back_slim` | Back cover: three bayonet lugs, no magnet pockets | `sled.py` |
 | `stl/sled` | Tray sled with the two cradle arms | `sled.py` |
 | `stl/magnet_test` | Test pockets for dialling in the magnet press fit | `magnet_test.py` |
@@ -64,8 +64,8 @@ cable, which runs back to the dash port.
   self-tapping pan-head screws instead.)
 - 4 × N52 12×2 mm disc magnets. **No glue** — each is pressed into an
   11.80 mm seat and held by the plastic. Peel any adhesive off the backs; it
-  only gets in the way. The two in the shell load from inside and disappear
-  behind a closed wall; the two in the arms sit 0.5 mm back from the pad face.
+  only gets in the way. The pockets are 2.5 mm deep for a 2.0 mm disc on
+  purpose — see `MAGNET_STANDOFF`.
 - Soft 1/16" (1.6 mm) closed-cell foam weatherstrip, a few cm. It needs to be
   thicker than the 1 mm gap so it squashes and takes up tolerance; dense 1 mm
   mounting tape is too firm.
@@ -94,20 +94,6 @@ then pressed the last 2 mm into the seat, where the plastic grips it.
 Superglue does not hold these — cyanoacrylate gets no grip on the nickel
 plating — so the plastic does the work instead.
 
-**The shell's two are blind.** They load from inside the shell, before the
-board goes in, and bottom out against the back of the wall — there is no
-opening in the outside surface at all. Plastic and air are magnetically the
-same, so filling what used to be a 1.2 mm recess costs nothing in holding
-force and leaves the outside smooth.
-
-The cap is a lens, not a slab: a flat disc behind a curved wall leaves
-`SIDE_CAP` in the middle of the pocket and less at its two tangential edges.
-At 1.6 mm that is 0.92 mm at the thinnest, comfortably over two extrusions.
-Don't drop it to the 1.2 mm the recess used to be — the edges go to 0.53 mm,
-one extrusion, and the slicer may skip them the way it skipped the old
-collar. Every 0.1 mm here is 0.1 mm of air gap: 1.6 puts the pair 2.1 mm
-apart, which is the gap this design wants anyway.
-
 The interference is in the bore diameter, not in a lip or a collar. A ledge
 inside a bore that is thinner than one extrusion width does not get printed
 at all, which is a good way to produce a pocket that looks right on screen
@@ -128,10 +114,9 @@ keep the tightest one that goes in without a fight, and put its number into
    with something flat — a coin, a socket, the back of a screwdriver. It
    takes a firm push and then goes. Don't hammer it: N52 is brittle and
    chips.
-4. The shell's two go in **from inside, before the board**, and are pushed
-   outward until they stop against the back of the wall. Use a drift that
-   fits down the bore — a 10 mm socket, a bolt head, a dowel — not a flat
-   block. In the arms the disc stops 0.5 mm behind the pad face.
+4. In the shell the disc ends up 1.3 mm below the outside surface, so tap it
+   home with a drift — a 10 mm socket, a bolt head, a dowel — not a flat
+   block. In the arms it stops 0.5 mm behind the pad face.
 5. If one won't start, a few turns of sandpaper wrapped round a pen opens the
    seat. If one drops straight in, lower `MAGNET_PRESS` and reprint that
    part.
@@ -156,8 +141,8 @@ Everything is set by the constants at the top of `case.py`:
   pull an arm off the sled; the ~2 mm gap is deliberate
 - Magnets drop into their pockets, or won't press in: `MAGNET_PRESS`, the
   radius of the seat relative to the disc. Print `magnet_test` to find it
-- Wall left over the shell's magnets: `SIDE_CAP` (1.6 mm at the middle of the
-  pocket, 0.92 mm at its edges). Thicker is a weaker hold and a stronger cap
+- Magnets standing proud of the shell: `SIDE_POCKET_SINK` (a flat disc in a
+  round pocket sits above a curved surface unless the pocket is sunk)
 - Gauge height, arm size and the tray well: the constants at the top of `sled.py`
 
 Regenerate after a change. The script checks the case against an outline of

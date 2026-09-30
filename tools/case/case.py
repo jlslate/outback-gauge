@@ -126,21 +126,11 @@ SIDE_MAGNET_DEG = (240.0, 300.0)
 SIDE_BOSS_R = 22.5          # inner face of the added material, behind the pocket
 SIDE_BOSS_HALF_DEG = 13.0     # stays clear of the USB-C plug at the bottom
 SIDE_MAGNET_Z = 9.5         # depth of the pocket centers behind the glass
-# Nothing breaks the shell's outside surface: the disc loads from inside and
-# the wall closes over it. The cap is the 1.2 mm that used to be recess -- the
-# 0.4 mm standoff plus the 0.8 mm that sank a flat disc below a convex wall --
-# so the air gap to the arm's magnet, and the holding force, are unchanged.
-# Plastic and air are magnetically the same, so there is nothing to gain by
-# thinning this to a skin over a void, and plenty to lose: the pockets are
-# bored sideways and print as a vertical wall, where 0.4 mm is one extrusion
-# and may not get laid down at all.
-#
-# A flat disc behind a curved wall makes the cap a lens -- this number at the
-# middle of the pocket, thinner at its two tangential edges (0.92 mm here, and
-# only 0.53 mm if this were the 1.2 mm the recess used to be). 1.6 keeps the
-# thinnest part over two extrusions wide, at the cost of 0.4 mm more air gap:
-# 2.1 mm to the arm's magnet, which is the ~2 mm this design aims for anyway.
-SIDE_CAP = 1.6
+# The shell's outside is convex, so a magnet sitting level with the tangent
+# point would stand proud around the rim of its pocket. 0.8 mm of extra depth
+# sinks the whole disc below the surface. (The arms are concave, so theirs
+# sit level.)
+SIDE_POCKET_SINK = 0.8
 
 
 # ---- helpers -----------------------------------------------------------------
@@ -203,19 +193,17 @@ def button_slots():
 
 
 def magnet_pockets():
-    """Blind pockets in the shell wall. The disc loads from inside the shell
-    and bottoms against the back of the cap, which is its stop; the outside
-    surface is unbroken."""
+    """Pockets in the shell wall. The disc goes in from outside, so the collar
+    sits on the far side of it from the floor."""
     seat = MAGNET_D / 2 + MAGNET_PRESS
     free = MAGNET_D / 2 + MAGNET_CLEAR
-    mouth = SIDE_BOSS_R - 0.5                        # starts behind the boss face
-    top = R_OUT - SIDE_CAP                           # outer end of the seat, under the cap
-    lead = top - (MAGNET_T + 0.1) - MAGNET_LEADIN - mouth
+    floor = R_OUT - MAGNET_POCKET - SIDE_POCKET_SINK
+    rest = R_OUT + 0.5 - floor - MAGNET_T - 0.1 - MAGNET_LEADIN
     out = None
     for deg in SIDE_MAGNET_DEG:
-        pocket = stack(mouth, [(lead, free, free),              # loose, in from the inside face
-                               (MAGNET_LEADIN, free, seat),     # cone into the seat
-                               (MAGNET_T + 0.1, seat, seat)])   # the disc is pressed in here
+        pocket = stack(floor, [(MAGNET_T + 0.1, seat, seat),    # the disc is pressed in here
+                               (MAGNET_LEADIN, seat, free),     # cone into the seat
+                               (rest, free, free)])             # loose, out to the surface
         pocket = radial(pocket, deg, SIDE_MAGNET_Z)
         out = pocket if out is None else out + pocket
     return out
