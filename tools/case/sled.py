@@ -41,7 +41,7 @@ SLED_RAIL = 11.0      # width of the frame rails
 FRONT_MARGIN = 2.0    # solid front rail, this far past the back of the arms
 
 # ---- the cradle --------------------------------------------------------------
-GAUGE_GAP = 8.0       # bottom of the case above the sled's top face
+GAUGE_GAP = 6.0       # bottom of the case above the sled's top face
 GAUGE_X = 22.5        # sideways offset from the sled centerline
 # Case mid-depth, back from the sled's front edge: half the case's depth, so
 # the glass ends up flush with the front of the sled.
@@ -52,10 +52,13 @@ ARM_DEPTH = 13.0      # how much of the case's 18.4 mm depth the arms hold
 # a wedge with a vertical outer wall down to the sled. The top is ARM_T_TOP
 # wide, so it finishes blunt rather than in a sharp tip.
 ARM_T_TOP = 6.0
-ARM_UP = 8.0          # how far the pad runs up the case from the magnet. With
-                      # the magnets at 45 deg the pad climbs sideways as fast
-                      # as it climbs, so this also sets how wide the cradle
-                      # sits: 10.0 puts the outer arm over the sled's edge.
+# The arms are as short as the magnet allows: their top is the highest point
+# of the whole sled, and at 45 deg every millimetre here is 0.7 mm of height
+# and 0.7 mm of width. ARM_UP only has to carry the pad past the top of the
+# 12.3 mm bore, so it is that plus a wall rather than a round number. (It also
+# sets how wide the cradle sits -- 10.0 put the outer arm over the sled's edge.)
+ARM_PAD_WALL = 1.2    # material above the bore at the top of the pad
+ARM_UP = case.MAGNET_D / 2 + case.MAGNET_CLEAR + ARM_PAD_WALL
 ARM_DOWN = 7.5        # and down toward the gap at the bottom; keeps the 12.3 mm
                       # magnet inside the pad, which is centered on the tangent
 

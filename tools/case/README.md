@@ -118,10 +118,17 @@ and holds nothing.
 
 **Print `magnet_test` first.** How a bore comes out varies by printer by more
 than the fit tolerance, so a guess costs an hour of shell. The coupon has
-four pockets bored sideways, the way the real ones print, at 12.10, 12.00,
-11.90 and 11.80 mm, with 1 to 4 ticks above them. Press a magnet into each,
-keep the tightest one that goes in without a fight, and put its number into
-`MAGNET_PRESS`.
+six pockets bored sideways, the way the real ones print, at 12.30, 12.20,
+12.10, 12.00, 11.90 and 11.80 mm, with 1 to 6 ticks above them. Press a magnet
+into each, keep the tightest one that goes in without a fight, and put its
+seat into `MAGNET_PRESS`.
+
+Both parts are on 11.80 mm, 6 ticks, and that is confirmed in a printed
+shell rather than only on the coupon. If a disc will not start, it is worth
+a second go with a drift before reaching for the next size up — the first
+shell printed at this seat felt too tight and turned out not to be.
+
+![The magnet pads in section](../../docs/magnet-pad.png)
 
 1. Snap the magnets together in two pairs so each pair attracts, and mark the
    outward face of each with a pen. Get a pair backwards and the gauge pushes

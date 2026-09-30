@@ -1,6 +1,6 @@
 """Test coupon for the magnet press fit.
 
-Four pockets in a bar, each a different seat diameter, bored sideways so they
+Six pockets in a bar, each a different seat diameter, bored sideways so they
 print the same way the real ones do -- a bore in a vertical wall, which is
 what decides how it comes out. Press a magnet into each and keep the number
 of the tightest one that still goes in without a fight. Ticks above each
