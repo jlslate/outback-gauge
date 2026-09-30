@@ -75,8 +75,8 @@ cable, which runs back to the dash port.
 1. Set the four magnets into the shell and the arms (see [Magnet mounting](#magnet-mounting)).
 2. Cut three narrow strips of foam (about 3 mm wide) and stick one on the end of each arc.
 3. Drop the board into the front shell from behind, glass first, turning it
-   so the USB-C port lines up with the notch at the bottom. PWR and BOOT then
-   line up with the two small holes on the right side.
+   so the USB-C port lines up with the notch at the bottom. PWR then lines up
+   with the small hole on the right side. BOOT has no hole — see below.
 4. Line the three lugs up with the three channels in the shell's back face —
    only one rotation fits — press the cover in against the foam, and twist it
    clockwise (seen from the back) about 18° until it clicks past the detents

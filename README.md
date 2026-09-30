@@ -19,8 +19,10 @@ adapter and adds a tilt meter from the board's motion sensor.
 
 **Tap** or **swipe left** for the next page, **swipe right** for the previous
 one. The dots along the bottom show where you are, and the current page is
-remembered across reboots. The BOOT button still works as a backup: a short
-press moves to the next page and holding it acts like a long press.
+remembered across reboots. The BOOT button does the same from the bench — a
+short press moves to the next page, holding it acts like a long press — but
+it has no hole in the case: it sits under one of the magnet pads. Everything
+it does is also a touch gesture.
 
 | Page | Source | Press and hold |
 |---|---|---|
