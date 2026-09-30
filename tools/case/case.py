@@ -120,17 +120,34 @@ MAGNET_LEADIN = 0.3         # cone at the mouth of the seat, so it starts square
 
 # The sled's cradle arms hold the shell by two magnets set into its side wall,
 # at the angles where the arms touch (0 deg = 3 o'clock, counter-clockwise).
-# The wall is only 2.2 mm, so it is thickened inward behind each magnet; at
-# these angles the board's edge is far enough in to leave room.
-SIDE_MAGNET_DEG = (240.0, 300.0)
-SIDE_BOSS_R = 22.5          # inner face of the added material, behind the pocket
-SIDE_BOSS_HALF_DEG = 13.0     # stays clear of the USB-C plug at the bottom
-SIDE_MAGNET_Z = 9.5         # depth of the pocket centers behind the glass
-# The shell's outside is convex, so a magnet sitting level with the tangent
-# point would stand proud around the rim of its pocket. 0.8 mm of extra depth
-# sinks the whole disc below the surface. (The arms are concave, so theirs
-# sit level.)
-SIDE_POCKET_SINK = 0.8
+# 45 deg off the bottom, not 30: the pads are wide enough that at 240/300 they
+# reached into the USB-C plug's path and pushed the case out to 56 mm across.
+# At 225/315 they clear the plug by 11 mm and stay inside the 54 mm circle.
+SIDE_MAGNET_DEG = (225.0, 315.0)
+# Depth of the pocket centers behind the glass. 9.0 rather than the case's
+# 9.2 mid-depth (where the arm's disc sits): at 9.5 the top of a 12.3 mm bore
+# reached z 15.65 and broke out through the 15.2 mm back face. 0.2 mm of
+# offset between the two discs is nothing; a slot in the back rim is not.
+SIDE_MAGNET_Z = 9.0
+#
+# The wall is only 2.2 mm, which is less than a 2 mm disc plus anything over
+# it, and none of the missing thickness can come from the inside: the 49 mm
+# glass slides the whole length of the bore on its way to the lip, so it has
+# to stay clear. This used to be a boss reaching inward to r=22.5, which both
+# stood in the glass's way and, being 10.7 mm across against a 12.3 mm bore,
+# was eaten whole by the pocket and held nothing.
+#
+# So the material goes outward instead, as a pad at each of the two angles.
+# Both pads stay inside the 54 mm circle -- they are 30 deg off the bottom, so
+# the widest point of the case is still the plain wall. The face is flat,
+# which keeps the cap an even thickness (a flat disc behind a curved wall
+# leaves a lens, thin at its edges) and gives the arm's flat pad a flat thing
+# to meet. The boss is coned so the transition prints without an overhang.
+SIDE_PAD_H = 2.0                     # how far the pad stands proud of R_OUT
+SIDE_PAD_R = R_OUT + SIDE_PAD_H      # its flat face
+SIDE_PAD_FACE_R = 7.7                # radius of the flat, around a 6.15 bore
+SIDE_PAD_BASE_R = SIDE_PAD_FACE_R + SIDE_PAD_H   # 45 deg flank into the wall
+SIDE_CAP = 1.6                       # plastic left over the disc
 
 
 # ---- helpers -----------------------------------------------------------------
@@ -192,18 +209,32 @@ def button_slots():
     return cuts[0] + cuts[1]
 
 
-def magnet_pockets():
-    """Pockets in the shell wall. The disc goes in from outside, so the collar
-    sits on the far side of it from the floor."""
-    seat = MAGNET_D / 2 + MAGNET_PRESS
-    free = MAGNET_D / 2 + MAGNET_CLEAR
-    floor = R_OUT - MAGNET_POCKET - SIDE_POCKET_SINK
-    rest = R_OUT + 0.5 - floor - MAGNET_T - 0.1 - MAGNET_LEADIN
+def magnet_pads():
+    """The two coned bosses that carry the magnets, standing proud of the wall."""
     out = None
     for deg in SIDE_MAGNET_DEG:
-        pocket = stack(floor, [(MAGNET_T + 0.1, seat, seat),    # the disc is pressed in here
-                               (MAGNET_LEADIN, seat, free),     # cone into the seat
-                               (rest, free, free)])             # loose, out to the surface
+        pad = stack(R_BORE, [(R_OUT - R_BORE, SIDE_PAD_BASE_R, SIDE_PAD_BASE_R),
+                             (SIDE_PAD_H, SIDE_PAD_BASE_R, SIDE_PAD_FACE_R)])
+        pad = radial(pad, deg, SIDE_MAGNET_Z)
+        out = pad if out is None else out + pad
+    # Never past the back face or below the lip's chamfer.
+    return out ^ cyl(CUP_LEN - EDGE_CHAMFER, R_OUT + SIDE_PAD_H + 1, EDGE_CHAMFER)
+
+
+def magnet_pockets():
+    """Blind pockets in the pads. The disc loads from inside the shell and
+    bottoms against the back of the cap; nothing reaches into the bore, and
+    the outside of the pad is unbroken."""
+    seat = MAGNET_D / 2 + MAGNET_PRESS
+    free = MAGNET_D / 2 + MAGNET_CLEAR
+    top = SIDE_PAD_R - SIDE_CAP                      # outer end of the seat
+    mouth = R_BORE - 0.5                             # opens flush with the bore
+    lead = top - (MAGNET_T + 0.1) - MAGNET_LEADIN - mouth
+    out = None
+    for deg in SIDE_MAGNET_DEG:
+        pocket = stack(mouth, [(lead, free, free),              # loose, in from the bore
+                               (MAGNET_LEADIN, free, seat),     # cone into the seat
+                               (MAGNET_T + 0.1, seat, seat)])   # the disc is pressed in here
         pocket = radial(pocket, deg, SIDE_MAGNET_Z)
         out = pocket if out is None else out + pocket
     return out
@@ -270,8 +301,7 @@ def front_shell():
         else:
             shell -= radial_hole(2.2, deg, LOCK_SCREW_Z, R_BORE - 0.5)
 
-    for deg in SIDE_MAGNET_DEG:                       # cradle magnets
-        shell += sector(SIDE_BOSS_R, R_BORE, deg, SIDE_BOSS_HALF_DEG, GLASS_BACK + 0.6, CUP_LEN)
+    shell += magnet_pads()                            # cradle magnets
     shell -= magnet_pockets()
     return shell
 
@@ -326,6 +356,14 @@ def board_envelope():
     return env
 
 
+def glass_path():
+    """The glass isn't just a disc at the lip -- it has to travel the whole
+    length of the bore to get there, from the open back. board_envelope() only
+    places it where it ends up, which is how a boss reaching into the bore
+    above it went unnoticed."""
+    return cyl(CUP_LEN + 1 - LIP, GLASS_D / 2, LIP)
+
+
 def usb_plug():
     mid = LIP + sum(USB_Z) / 2
     return box(-6.1, 6.1, -40, -24.2, mid - 3.25, mid + 3.25)
@@ -340,6 +378,9 @@ def check(parts):
         ok &= v < 0.01
     v = (parts["case_front"] ^ usb_plug()).volume()
     print(f"  {'USB-C plug path':28s} overlap with shell   {v:7.3f} mm^3")
+    ok &= v < 0.01
+    v = (parts["case_front"] ^ glass_path()).volume()
+    print(f"  {'glass going in':28s} overlap with shell   {v:7.3f} mm^3")
     ok &= v < 0.01
 
     if BAYONET:

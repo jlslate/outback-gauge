@@ -48,11 +48,14 @@ GAUGE_X = 22.5        # sideways offset from the sled centerline
 GAUGE_Y = -(case.CUP_LEN + case.MAGNET_FLOOR) / 2
 ARM_FIT = 0.3         # gap between the arm's face and the case
 ARM_DEPTH = 13.0      # how much of the case's 18.4 mm depth the arms hold
-# Each arm is a flat pad, tangent to the case where its magnet sits, carried on
+# Each arm is a flat pad, meeting the shell's own flat magnet pad, carried on
 # a wedge with a vertical outer wall down to the sled. The top is ARM_T_TOP
 # wide, so it finishes blunt rather than in a sharp tip.
 ARM_T_TOP = 6.0
-ARM_UP = 10.0         # how far the pad runs up the case from the magnet
+ARM_UP = 8.0          # how far the pad runs up the case from the magnet. With
+                      # the magnets at 45 deg the pad climbs sideways as fast
+                      # as it climbs, so this also sets how wide the cradle
+                      # sits: 10.0 puts the outer arm over the sled's edge.
 ARM_DOWN = 7.5        # and down toward the gap at the bottom; keeps the 12.3 mm
                       # magnet inside the pad, which is centered on the tangent
 
@@ -106,7 +109,7 @@ def _arm_profile(deg):
     """Outline of one arm in the plane of the screen, as (x, height) pairs
     measured from the case's center."""
     a = math.radians(deg)
-    face = case.R_OUT + ARM_FIT                       # the flat pad, tangent to the case
+    face = case.SIDE_PAD_R + ARM_FIT                  # flat, against the shell's flat pad
     n = (math.cos(a), math.sin(a))                    # outward, toward the pad
     t = (-math.sin(a), math.cos(a))                   # along the pad
     if t[1] < 0:                                      # point it up the case on both sides
@@ -133,7 +136,7 @@ def cradle():
     # so the collar sits at the mouth and the disc snaps in behind it.
     seat = case.MAGNET_D / 2 + case.MAGNET_PRESS
     free = case.MAGNET_D / 2 + case.MAGNET_CLEAR
-    face = case.R_OUT + ARM_FIT
+    face = case.SIDE_PAD_R + ARM_FIT
     for deg in case.SIDE_MAGNET_DEG:
         pocket = stack(face - 1, [(1.0, free, free),                        # clear of the case
                                   (case.MAGNET_LEADIN, free, seat),         # cone into the seat
