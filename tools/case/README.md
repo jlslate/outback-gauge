@@ -66,7 +66,7 @@ through polarized sunglasses.
 - No screws: the back cover twists on. (With `BAYONET = False`, 3 × M2×4
   self-tapping pan-head screws instead.)
 - 4 × N52 12×2 mm disc magnets. **No glue** — each is pressed into an
-  11.80 mm seat and held by the plastic. Peel any adhesive off the backs; it
+  11.90 mm seat and held by the plastic. Peel any adhesive off the backs; it
   only gets in the way. The shell's two load from inside and vanish behind a
   closed pad; the arms' two stop 0.5 mm behind the pad face.
 - Soft 1/16" (1.6 mm) closed-cell foam weatherstrip, a few cm. It needs to be
@@ -159,8 +159,8 @@ six pockets bored sideways, the way the real ones print, at 12.30, 12.20,
 into each, keep the tightest one that goes in without a fight, and put its
 seat into `MAGNET_PRESS`.
 
-Both parts are on 11.80 mm, 6 ticks, and that is confirmed in a printed
-shell rather than only on the coupon. If a disc will not start, it is worth
+Both parts are on 11.90 mm, 5 ticks. 11.80 mm (6 ticks) was tried in a
+printed shell first and was tight enough to need a tool to pull a disc out. If a disc will not start, it is worth
 a second go with a drift before reaching for the next size up — the first
 shell printed at this seat felt too tight and turned out not to be.
 

@@ -126,11 +126,11 @@ MAGNET_POCKET = MAGNET_T + MAGNET_STANDOFF + 0.1
 # in the bore diameter itself, which is a perimeter the slicer follows exactly
 # -- a thin ledge or collar inside the bore is narrower than one extrusion and
 # simply does not get printed.
-MAGNET_PRESS = -0.10        # radial: seat diameter is 2 x (MAGNET_D/2 + this).
-                            # -0.10 is an 11.80 mm seat, coupon 6 of 6: a disc
-                            # goes in with a gentle tap and does not come back
-                            # out by hand. Confirmed in a printed shell, in the
-                            # pads, and not just on the coupon.
+MAGNET_PRESS = -0.05        # radial: seat diameter is 2 x (MAGNET_D/2 + this).
+                            # -0.05 is an 11.90 mm seat, coupon 5 of 6. The
+                            # 11.80 mm seat (coupon 6, -0.10) was a press fit
+                            # that needed a tool to pull out; this is one step
+                            # looser.
 MAGNET_CLEAR = 0.15         # radial clearance in the loose part in front of it
 MAGNET_LEADIN = 0.3         # cone at the mouth of the seat, so it starts square
 
