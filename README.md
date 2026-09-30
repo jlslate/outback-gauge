@@ -86,6 +86,12 @@ If an upload won't start, hold BOOT while plugging in USB.
 Serial output (`pio device monitor`) logs the adapter it finds, its banner,
 which BLE service it picked, and battery voltage every 10 s.
 
+Attach the monitor *before* resetting if you want the boot lines. The USB-C
+port is the S3's native USB, so the host has not enumerated it yet when
+`setup()` runs and everything it prints — the expander, IMU and touch
+addresses — is gone before anything is listening. A plain power-up gets you
+nothing until the first `[BAT]` line ten seconds later.
+
 ## Preview the UI on a Mac
 
 `tools/preview/build.sh` compiles `src/ui.cpp` and LVGL with clang and renders
@@ -138,19 +144,25 @@ clang++ -std=c++17 -Isrc tools/gesture-test/gesture_test.cpp -o /tmp/gesture_tes
 - `src/webpage.cpp`: the form's markup, split from the server so the Mac
   renderer can build it.
 
-## Still to verify on hardware
+## Hardware status
 
-All of the orientation guesses below are checkboxes on the settings page now, so
-they can be flipped while the board is in your hand instead of over a reflash.
+Confirmed on the board. Every guess in `src/config.h` turned out right, so
+none of the orientation flags needed changing from their defaults:
 
-- **Screen orientation**: tick "Rotate picture 180°" if it's upside down (needs a reboot).
-- **Tilt direction**: tick "Invert tilt roll" / "Invert tilt pitch" if it leans the wrong way.
-- **Touch**: serial should print `[TOUCH] SPD2010...` at boot. If swiping left goes
-  to the previous page, tick "Invert touch X"; if swipes don't register at all
-  but taps do, try "Swap touch X and Y".
+- **Expander**: TCA9554 answers at 0x20, and the panel and touch resets work.
+- **IMU**: QMI8658 at 0x6B, the first of the two addresses probed.
+- **Touch**: present and reporting at boot. Taps and swipes go the right way,
+  so `TOUCH_SWAP_XY`, `TOUCH_INVERT_X` and `TOUCH_INVERT_Y` all stay 0.
+- **Screen orientation**: right way up, so `DISPLAY_ROTATE_180` stays 0.
+- **Tilt direction**: leans the right way, so both sign flags stay +1.
+- **Settings Wi-Fi**: the access point comes up and the form saves, with BLE
+  running on the same radio — the one thing the bench build couldn't prove.
+
+Still open:
+
 - **OBDLink CX pairing**: assumed to need no PIN or bonding. If it connects
-  but never answers, it may need BLE security enabled.
-- **IMU address**: probes 0x6B then 0x6A.
+  but never answers, it may need BLE security enabled. Not tried in the car yet,
+  so it is the only part of this that is still a guess.
 
 ## Next
 
