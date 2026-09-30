@@ -13,7 +13,7 @@ bridges over them.
 The gauge stands perpendicular to the sled with its bottom edge 8 mm clear,
 cradled by two arms at the front. The arms hold it at 240 and 300 degrees,
 where the shell carries magnets in its side wall, and the gap between them
-leaves the USB-C notch at the bottom of the case clear for the cable.
+is well below the USB-C port, which points sideways out of the case (case.USB_DEG).
 
 Tray well, measured: 147 mm long, 113 mm wide at the mouth tapering to 80 mm
 at the back, 13 mm deep, no lip at the front.
@@ -163,11 +163,11 @@ def check(part):
     v = (part ^ _bore(case.R_OUT)).volume()
     print(f"  case in the cradle: overlap {v:6.3f} mm^3")
     ok &= v < 0.01
-    # The plug drops out of the notch into the gap under the case, then the
-    # cable runs back to the port; only that gap has to stay clear.
-    plug = box(GAUGE_X - 6.4, GAUGE_X + 6.4, GAUGE_Y - 6, GAUGE_Y + 6, SLED_T, CENTER_Z - case.R_OUT + 1)
+    # The plug leaves the case sideways through its notch at USB_DEG, at the
+    # height of the gauge's center, and the cable runs off from there.
+    plug = _upright(case.usb_plug().translate([0, 0, GAUGE_Y]))
     v = (part ^ plug).volume()
-    print(f"  plug in the gap:    overlap {v:6.3f} mm^3")
+    print(f"  plug out the side:  overlap {v:6.3f} mm^3")
     return ok and v < 0.01
 
 

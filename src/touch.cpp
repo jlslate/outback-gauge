@@ -5,6 +5,7 @@
 
 #include "board.h"
 #include "config.h"
+#include "display.h"
 #include "gesture.h"
 #include "settings.h"
 
@@ -112,15 +113,34 @@ GestureDetector gestures;
 
 void orient(uint16_t &x, uint16_t &y) {
   const Settings &s = settings();
+  // Panel coordinates to picture coordinates, the same mapping LVGL applies
+  // for each display rotation (see indev_pointer_proc in lv_indev.c).
+  const uint16_t last = LCD_SIZE - 1;
+  switch (display_rotation()) {
+    case 90: {
+      const uint16_t t = x;
+      x = last - y;
+      y = t;
+      break;
+    }
+    case 180:
+      x = last - x;
+      y = last - y;
+      break;
+    case 270: {
+      const uint16_t t = x;
+      x = y;
+      y = last - t;
+      break;
+    }
+  }
   if (s.touchSwapXY) {
     const uint16_t t = x;
     x = y;
     y = t;
   }
-  // Rotating the picture already flips both axes, so an inversion on top of it
-  // cancels out.
-  if (s.touchInvertX != s.rotate180) x = LCD_SIZE - 1 - x;
-  if (s.touchInvertY != s.rotate180) y = LCD_SIZE - 1 - y;
+  if (s.touchInvertX) x = last - x;
+  if (s.touchInvertY) y = last - y;
 }
 
 }  // namespace

@@ -52,11 +52,18 @@ void display_init() {
   drv.draw_buf = &drawBuf;
   // Read once here rather than per frame: LVGL wants the rotation set before
   // the driver is registered, so changing it needs a reboot.
-  if (settings().rotate180) {
-    drv.sw_rotate = 1;
-    drv.rotated = LV_DISP_ROT_180;
+  switch (display_rotation()) {
+    case 90:  drv.rotated = LV_DISP_ROT_90; break;
+    case 180: drv.rotated = LV_DISP_ROT_180; break;
+    case 270: drv.rotated = LV_DISP_ROT_270; break;
+    default:  drv.rotated = LV_DISP_ROT_NONE; break;
   }
+  drv.sw_rotate = drv.rotated != LV_DISP_ROT_NONE;
   lv_disp_drv_register(&drv);
+}
+
+int display_rotation() {
+  return (DISPLAY_MOUNT_DEG + (settings().rotate180 ? 180 : 0)) % 360;
 }
 
 void display_loop() {

@@ -39,8 +39,15 @@ GLASS_D = 49.0       # widened cover glass
 GLASS_T = 2.7        # measured off the side view; the foam gap absorbs error
 STACK = 13.2         # glass front to header pin tips (drawing: 13.20)
 USB_Z = (8.3, 11.4)  # USB-C receptacle, depth range behind the glass front
+# Where the USB-C port points, seen from the front (0 = 3 o'clock). The board
+# drawing has it at 270 (down); the screen is polarized and so are sunglasses,
+# so the board is turned a quarter so the picture is readable through them. The
+# magnet pads and everything else about the shell stay where the cradle expects
+# them -- only the board, and what has to keep clear of it, turns.
+USB_DEG = 180
+BOARD_TURN = USB_DEG - 270   # degrees the board is turned from its drawing
 BUTTON_Z = 9.0       # PWR/BOOT side switches, depth behind the glass front
-PWR_DEG, BOOT_DEG = 32, -38  # angles seen from the front (0 = 3 o'clock)
+PWR_DEG, BOOT_DEG = 32 + BOARD_TURN, -38 + BOARD_TURN  # angles seen from the front (0 = 3 o'clock)
 # Neither button gets a hole. BOOT sits 7 deg from the 315 deg magnet pad,
 # which at this radius is 3.2 mm -- inside the pocket's 5.95 mm -- so its slot
 # broke into the magnet seat and notched the wall meant to grip the disc, and
@@ -66,8 +73,8 @@ CUP_LEN = LIP + STACK + BACK_CLEAR
 GLASS_BACK = LIP + GLASS_T
 
 # Pusher arcs: (center deg, half-width deg). They stay clear of the USB-C
-# notch at the bottom and the PWR/BOOT holes on the right.
-ARCS = [(90, 30), (180, 30), (0, 12)]
+# notch and the PWR/BOOT holes; drawn for the port at 270, turned with the board.
+ARCS = [((d + BOARD_TURN) % 360, h) for d, h in [(90, 30), (180, 30), (0, 12)]]
 ARC_R_IN = 22.2      # board parts all sit inside r = 21.5 away from the USB port
 ARC_R_OUT = R_BORE - 0.15
 LOCK_SCREW_Z = CUP_LEN - 3.0
@@ -208,7 +215,8 @@ def ring_chamfer(r, z, c, front=True):
 def usb_cut():
     usb_w, usb_h = USB_OPENING
     usb_mid = LIP + sum(USB_Z) / 2
-    return box(-usb_w / 2, usb_w / 2, -R_OUT - 1, -R_BORE + 1, usb_mid - usb_h / 2, CUP_LEN + 1)
+    cut = box(-usb_w / 2, usb_w / 2, -R_OUT - 1, -R_BORE + 1, usb_mid - usb_h / 2, CUP_LEN + 1)
+    return cut.rotate([0, 0, BOARD_TURN])
 
 
 def button_slots():
@@ -362,7 +370,7 @@ def board_envelope():
     env = parts[0]
     for p in parts[1:]:
         env += p
-    return env
+    return env.rotate([0, 0, BOARD_TURN])
 
 
 def glass_path():
@@ -375,7 +383,7 @@ def glass_path():
 
 def usb_plug():
     mid = LIP + sum(USB_Z) / 2
-    return box(-6.1, 6.1, -40, -24.2, mid - 3.25, mid + 3.25)
+    return box(-6.1, 6.1, -40, -24.2, mid - 3.25, mid + 3.25).rotate([0, 0, BOARD_TURN])
 
 
 def check(parts):

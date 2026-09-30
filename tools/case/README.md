@@ -43,8 +43,11 @@ shell will not take a screw cover.
 
 In the sled, the gauge stands square with its bottom edge 8 mm clear, its
 face flush with the sled's front, and its screen center 38 mm above the tray
-floor. The 14 mm gap between the arms leaves the USB-C notch clear for the
-cable, which runs back to the dash port.
+floor. The USB-C port points **left** (`USB_DEG` in `case.py`), out of the
+side of the case well clear of the arms, and the cable runs back to the dash
+port. It is turned a quarter from the board's natural bottom-edge position
+because the screen is polarized: with the port down, the picture goes black
+through polarized sunglasses.
 
 ## Printing
 
@@ -76,15 +79,16 @@ cable, which runs back to the dash port.
 2. Cut three strips of the foam about 3 mm wide and stick one on the **tip**
    of each arc — the end face that points forward, not the arc's inner or
    outer side. Two are about 25 mm long and one about 10 mm, and the short
-   strip goes on the short arc. The bottom of the cover has no arc at all,
+   strip goes on the short arc. The left of the cover has no arc at all,
    which is how you tell which way round it is: that gap faces the USB-C
-   notch.
+   notch. (The picture below predates the quarter turn and shows the gap at
+   the bottom.)
 
    ![Where the foam goes](../../docs/foam-placement.png)
 
    ![Section through an arc](../../docs/foam-section.png)
 3. Drop the board into the front shell from behind, glass first, turning it
-   so the USB-C port lines up with the notch at the bottom. Neither side
+   so the USB-C port lines up with the notch on the left. Neither side
    button gets a hole — see [Buttons](#buttons).
 4. Line the three lugs up with the three channels in the shell's back face —
    only one rotation fits — press the cover in against the foam, and twist it
