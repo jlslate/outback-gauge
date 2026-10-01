@@ -82,6 +82,10 @@ through polarized sunglasses.
    squashes into the 1 mm gap and takes up tolerance. The cover has no arc on
    the right, which is how you tell which way round it is: that gap faces the
    USB-C notch.
+
+   ![Where the foam goes](../../docs/foam-placement.png)
+
+   ![Section through an arc](../../docs/foam-section.png)
 3. Drop the board into the front shell from behind, glass first, turning it
    so the USB-C port lines up with the notch on the right. Neither side
    button gets a hole — see [Buttons](#buttons).
