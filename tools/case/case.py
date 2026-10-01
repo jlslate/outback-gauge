@@ -39,9 +39,13 @@ GLASS_D = 49.0       # widened cover glass
 GLASS_T = 2.7        # measured off the side view; the foam gap absorbs error
 STACK = 13.2         # glass front to header pin tips (drawing: 13.20)
 USB_Z = (8.3, 11.4)  # USB-C receptacle, depth range behind the glass front
-# Where the USB-C port points, seen from the front (0 = 3 o'clock). The board
+# Where the USB-C port points in this file's coordinates (0 = +x). The board
 # drawing has it at 270 (down); the screen is polarized and so are sunglasses,
-# so the board is turned a quarter so the picture is readable through them. The
+# so the board is turned a quarter so the picture is readable through them.
+# NOTE the frame here is left-handed (x right, y up, z away from the viewer),
+# so the printed part is mirrored left-for-right: 180 prints with the port on
+# the viewer's RIGHT, board turned a quarter counter-clockwise. Left-right
+# angles in this file are mirrored the same way. The
 # magnet pads and everything else about the shell stay where the cradle expects
 # them -- only the board, and what has to keep clear of it, turns.
 USB_DEG = 180

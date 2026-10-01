@@ -13,7 +13,8 @@ bridges over them.
 The gauge stands perpendicular to the sled with its bottom edge 8 mm clear,
 cradled by two arms at the front. The arms hold it at 240 and 300 degrees,
 where the shell carries magnets in its side wall, and the gap between them
-is well below the USB-C port, which points sideways out of the case (case.USB_DEG).
+is well below the USB-C port, which points sideways out of the case (case.USB_DEG; it prints on the
+viewer's right).
 
 Tray well, measured: 147 mm long, 113 mm wide at the mouth tapering to 80 mm
 at the back, 13 mm deep, no lip at the front.
