@@ -70,24 +70,18 @@ through polarized sunglasses.
   11.90 mm seat and held by the plastic. Peel any adhesive off the backs; it
   only gets in the way. The shell's two load from inside and vanish behind a
   closed pad; the arms' two stop 0.5 mm behind the pad face.
-- Soft 1/16" (1.6 mm) closed-cell foam weatherstrip, a few cm. It needs to be
-  thicker than the 1 mm gap so it squashes and takes up tolerance; dense 1 mm
-  mounting tape is too firm.
+- Soft foam tape, enough for two layers round the glass's rim. Together the
+  layers need to be thicker than the 1 mm gap so they squash and take up
+  tolerance; dense 1 mm mounting tape is too firm.
 
 ## Assembly
 
 1. Set the four magnets into the shell and the arms (see [Magnet mounting](#magnet-mounting)).
-2. Cut three strips of the foam about 3 mm wide and stick one on the **tip**
-   of each arc — the end face that points forward, not the arc's inner or
-   outer side. Two are about 25 mm long and one about 10 mm, and the short
-   strip goes on the short arc. The right of the cover has no arc at all,
-   which is how you tell which way round it is: that gap faces the USB-C
-   notch. (The picture below predates the quarter turn and shows the gap at
-   the bottom.)
-
-   ![Where the foam goes](../../docs/foam-placement.png)
-
-   ![Section through an arc](../../docs/foam-section.png)
+2. Stick two layers of the foam tape on the back of the glass, round its rim
+   where the arcs will press. This is the version that was built and works: it
+   squashes into the 1 mm gap and takes up tolerance. The cover has no arc on
+   the right, which is how you tell which way round it is: that gap faces the
+   USB-C notch.
 3. Drop the board into the front shell from behind, glass first, turning it
    so the USB-C port lines up with the notch on the right. Neither side
    button gets a hole — see [Buttons](#buttons).
