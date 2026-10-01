@@ -93,7 +93,7 @@ through polarized sunglasses.
    button gets a hole — see [Buttons](#buttons).
 4. Line the three lugs up with the three channels in the shell's back face —
    only one rotation fits — press the cover in against the foam, and twist it
-   clockwise (seen from the back) about 18° until it clicks past the detents
+   counter-clockwise (seen from the back) about 18° until it clicks past the detents
    and stops.
 
 ## Buttons

@@ -139,7 +139,8 @@ MAGNET_CLEAR = 0.15         # radial clearance in the loose part in front of it
 MAGNET_LEADIN = 0.3         # cone at the mouth of the seat, so it starts square
 
 # The sled's cradle arms hold the shell by two magnets set into its side wall,
-# at the angles where the arms touch (0 deg = 3 o'clock, counter-clockwise).
+# at the angles where the arms touch (0 deg = +x, counter-clockwise in this file's mirrored frame; as printed,
+# seen from the front, 0 is 9 o'clock and angles run clockwise).
 # 45 deg off the bottom, not 30: the pads are wide enough that at 240/300 they
 # reached into the USB-C plug's path and pushed the case out to 56 mm across.
 # At 225/315 they clear the plug by 11 mm and stay inside the 54 mm circle.
