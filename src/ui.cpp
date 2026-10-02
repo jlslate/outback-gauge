@@ -9,6 +9,10 @@
 #include "settings.h"
 #include "webconfig.h"
 
+// Digits only, generated at a size the bundled fonts stop short of; see
+// tools/gen_big_font.py.
+extern "C" const lv_font_t font_big;
+
 namespace {
 
 constexpr lv_coord_t C = LCD_SIZE / 2;  // screen center
@@ -179,9 +183,9 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   lv_meter_set_indicator_value(g.meter, g.needle, cfg.min * cfg.mul);
   if (cfg.mul > 1) lv_obj_add_event_cb(g.meter, scaledTickLabels, LV_EVENT_DRAW_PART_BEGIN, (void *)&cfg);
 
-  g.value = label(g.screen, &lv_font_montserrat_48, WHITE, 0, 92);
-  lv_label_set_text(label(g.screen, &lv_font_montserrat_24, GREY, 0, 136), cfg.unit);
-  g.status = label(g.screen, &lv_font_montserrat_18, GREY, 0, 162);
+  g.value = label(g.screen, &font_big, WHITE, 0, 94);
+  lv_label_set_text(label(g.screen, &lv_font_montserrat_24, GREY, 0, 140), cfg.unit);
+  g.status = label(g.screen, &lv_font_montserrat_18, GREY, 0, 165);
   return g;
 }
 

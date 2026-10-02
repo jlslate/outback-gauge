@@ -21,7 +21,8 @@ done
 clang++ -std=c++17 -O1 $INC -c "$ROOT/src/ui.cpp" -o "$OUT/ui.o"
 clang++ -std=c++17 -O1 $INC -c "$ROOT/src/settings.cpp" -o "$OUT/settings.o"
 clang++ -std=c++17 -O1 $INC -c "$HERE/harness.cpp" -o "$OUT/harness.o"
-clang++ "$OUT"/obj/*.o "$OUT/ui.o" "$OUT/settings.o" "$OUT/harness.o" -o "$OUT/render"
+clang -c -O1 -w $INC "$ROOT/src/font_big.c" -o "$OUT/font_big.o"
+clang++ "$OUT"/obj/*.o "$OUT/font_big.o" "$OUT/ui.o" "$OUT/settings.o" "$OUT/harness.o" -o "$OUT/render"
 
 (cd "$OUT" && ./render)
 sips -s format png "$OUT/gauges.ppm" --out "$ROOT/docs/preview.png" >/dev/null
