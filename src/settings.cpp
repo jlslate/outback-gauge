@@ -10,7 +10,7 @@ namespace {
 // Stored as one blob rather than a key per field: the whole struct round-trips
 // in two NVS calls, and a version mismatch after a firmware change falls back
 // to defaults instead of leaving half the fields stale. Bump on any layout change.
-constexpr uint16_t LAYOUT = 1;
+constexpr uint16_t LAYOUT = 2;
 
 struct Stored {
   uint16_t layout;
@@ -37,9 +37,7 @@ void sanitize(Settings &s) {
   s.intakeWarnF = clampf(s.intakeWarnF, 60, 200);
   s.voltsLowWarn = clampf(s.voltsLowWarn, 10, 14);
   s.voltsHighWarn = clampf(s.voltsHighWarn, 13, 16);
-  s.tiltWarnDeg = clampf(s.tiltWarnDeg, 5, 45);
-  s.rollSign = s.rollSign < 0 ? -1 : 1;
-  s.pitchSign = s.pitchSign < 0 ? -1 : 1;
+  s.autoRotateSecs = clampf(s.autoRotateSecs, 1, 60);
   // A low warning above the high one would paint the whole scale; keep them apart.
   if (s.voltsLowWarn > s.voltsHighWarn - 0.5f) s.voltsLowWarn = s.voltsHighWarn - 0.5f;
 }
@@ -54,13 +52,8 @@ Settings settings_defaults() {
   s.intakeWarnF = INTAKE_WARN_F;
   s.voltsLowWarn = VOLTS_LOW_WARN;
   s.voltsHighWarn = VOLTS_HIGH_WARN;
-  s.tiltWarnDeg = TILT_WARN_DEG;
-  s.rotate180 = DISPLAY_ROTATE_180;
-  s.touchSwapXY = TOUCH_SWAP_XY;
-  s.touchInvertX = TOUCH_INVERT_X;
-  s.touchInvertY = TOUCH_INVERT_Y;
-  s.rollSign = TILT_ROLL_SIGN;
-  s.pitchSign = TILT_PITCH_SIGN;
+  s.autoRotate = AUTO_ROTATE;
+  s.autoRotateSecs = AUTO_ROTATE_SECS;
   return s;
 }
 

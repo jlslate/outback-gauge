@@ -69,7 +69,6 @@ String render(const Settings &s, const char *note) {
   num(o, "intake", "Intake air", "min=60 max=200 step=1", s.intakeWarnF, 0, "&deg;F");
   num(o, "vlo", "Battery low", "min=10 max=14 step=0.1", s.voltsLowWarn, 1, "V");
   num(o, "vhi", "Battery high", "min=13 max=16 step=0.1", s.voltsHighWarn, 1, "V");
-  num(o, "tilt", "Tilt", "min=5 max=45 step=1", s.tiltWarnDeg, 0, "&deg;");
 
   o += F("<h2>Display</h2><label><span>Backlight</span>"
          "<input type=range name=bl min=5 max=100 step=5 value=");
@@ -78,14 +77,10 @@ String render(const Settings &s, const char *note) {
   o += String((int)s.backlight);
   o += F("%</em></label>");
 
-  o += F("<h2>Orientation</h2>");
-  check(o, "rot", "Rotate picture 180&deg;", s.rotate180);
-  check(o, "swap", "Swap touch X and Y", s.touchSwapXY);
-  check(o, "invx", "Invert touch X", s.touchInvertX);
-  check(o, "invy", "Invert touch Y", s.touchInvertY);
-  check(o, "roll", "Invert tilt roll", s.rollSign < 0);
-  check(o, "pitch", "Invert tilt pitch", s.pitchSign < 0);
-  o += F("<p class=warn>Rotating the picture needs a reboot. Everything else applies as soon as you save.</p>"
+  o += F("<h2>Rotation</h2>");
+  check(o, "auto", "Cycle through the gauges", s.autoRotate);
+  num(o, "secs", "Seconds per gauge", "min=1 max=60 step=0.5", s.autoRotateSecs, 1, "s");
+  o += F("<p class=warn>Tap the screen to move on early. Hold to open this page.</p>"
          "<button>Save</button></form>"
          "<form method=POST action=/defaults><button class=ghost>Restore defaults</button></form>"
          "<form method=POST action=/reboot><button class=ghost>Reboot the gauge</button></form>"

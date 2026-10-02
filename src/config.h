@@ -11,6 +11,11 @@
 // The strongest-signal match wins. Compile-time only.
 static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate", "icar"};
 
+// Bond with the adapter before using it. The OBDLink CX refuses to enable
+// notifications on an unencrypted link, so it never answers without this. Turn
+// it off for an adapter that works without pairing.
+#define OBD_BONDING 1
+
 // How the board is turned in the case, in degrees: 0, 90, 180 or 270. The
 // screen is polarized, and so are sunglasses, so the board sits a quarter turn
 // counter-clockwise (USB-C port on the viewer's right) and the picture is
@@ -18,19 +23,9 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 // picture is sideways the wrong way, try 90.
 #define DISPLAY_MOUNT_DEG 270
 
-// Set to 1 if the picture is upside down with the board mounted the way you want.
-// Adds a further half turn on top of DISPLAY_MOUNT_DEG.
-#define DISPLAY_ROTATE_180 0
-
-// Touch axes relative to the picture. Only swipe direction depends on these;
-// if swiping left goes to the previous page, flip TOUCH_INVERT_X.
-#define TOUCH_SWAP_XY 0
-#define TOUCH_INVERT_X 0
-#define TOUCH_INVERT_Y 0
-
-// Flip these to -1 if the tilt page leans the wrong way.
-#define TILT_ROLL_SIGN 1
-#define TILT_PITCH_SIGN 1
+// Step through the gauges on a timer. A tap still moves on early.
+#define AUTO_ROTATE 1
+#define AUTO_ROTATE_SECS 3.0f
 
 // Value turns red at or beyond these.
 #define BOOST_WARN_PSI 17.0f
@@ -38,7 +33,6 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 #define INTAKE_WARN_F 140.0f
 #define VOLTS_LOW_WARN 12.0f
 #define VOLTS_HIGH_WARN 15.2f
-#define TILT_WARN_DEG 25.0f
 
 // Settings access point. Compile-time only: it has to be reachable before you
 // can change anything. How long it stays up with no requests before shutting

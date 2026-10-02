@@ -5,7 +5,7 @@
 
 const char *name(TouchEvent e) {
   switch (e) { case TouchEvent::Tap: return "Tap"; case TouchEvent::LongPress: return "LongPress";
-    case TouchEvent::SwipeLeft: return "SwipeLeft"; case TouchEvent::SwipeRight: return "SwipeRight"; default: return "None"; }
+    default: return "None"; }
 }
 struct Sample { bool report, down; int x, y; };
 // Polls every 20 ms; returns all non-None events in order.
@@ -29,11 +29,10 @@ int main() {
     {"tap with jitter", drag(200, 200, 212, 190, 5), "Tap"},
     {"long press", hold(60, 200, 200) + lift(200, 200), "LongPress"},
     {"long press then gap", hold(60, 200, 200), "LongPress"},
-    {"swipe left", drag(320, 200, 100, 210, 10) + lift(100, 210), "SwipeLeft"},
-    {"swipe right", drag(100, 200, 320, 190, 10), "SwipeRight"},
+    {"swipe is not a tap", drag(320, 200, 100, 210, 10) + lift(100, 210), "None"},
     {"vertical drag", drag(200, 80, 220, 330, 10), "None"},
     {"hold 800ms (too long for tap, too short for long)", hold(40, 200, 200) + lift(200, 200), "None"},
-    {"drag then hold still (no long press)", drag(100, 200, 300, 200, 10) + hold(60, 300, 200), "SwipeRight"},
+    {"drag then hold still (no long press)", drag(100, 200, 300, 200, 10) + hold(60, 300, 200), "None"},
     {"intermittent reports while held", sparse(6, 200, 200, 3) + lift(200, 200), "Tap"},
     {"two taps", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,Tap"},
   };

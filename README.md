@@ -2,13 +2,13 @@
 
 A round gauge pod for a 2025 Subaru Outback 2.4 turbo, built on the Waveshare
 ESP32-S3-Touch-LCD-1.46B. It reads live engine data from a Bluetooth LE OBD-II
-adapter and adds a tilt meter from the board's motion sensor.
+adapter.
 
 ![Gauge pages](docs/preview.png)
 
 ## Hardware
 
-- **Waveshare ESP32-S3-Touch-LCD-1.46B**: ESP32-S3R8, 412×412 round SPD2010 display, QMI8658 IMU
+- **Waveshare ESP32-S3-Touch-LCD-1.46B**: ESP32-S3R8, 412×412 round SPD2010 display
 - **BLE OBD-II adapter**: OBDLink CX recommended; any ELM327-compatible adapter that
   speaks **Bluetooth LE** should work (the ESP32-S3 can't do classic Bluetooth)
 - USB-C power from the car's console port. No battery: a hot parked car is hard on LiPos.
@@ -17,31 +17,33 @@ adapter and adds a tilt meter from the board's motion sensor.
 
 ## Pages
 
-**Tap** or **swipe left** for the next page, **swipe right** for the previous
-one. The dots along the bottom show where you are, and the current page is
+The gauges cycle on their own every 3 seconds (adjustable, or off, on the
+settings page). **Tap** to go to the next one early. The dots along the bottom show where you are, and the current page is
 remembered across reboots. The BOOT button does the same from the bench — a
 short press moves to the next page, holding it acts like a long press — but
 it has no hole in the case: it sits under one of the magnet pads. Everything
 it does is also a touch gesture.
 
-| Page | Source | Press and hold |
-|---|---|---|
-| Boost (psi, vacuum below 0) | PID 0x0B manifold pressure minus PID 0x33 baro | Reset peak |
-| Coolant (°F) | PID 0x05 | |
-| Intake air (°F) | PID 0x0F | |
-| Battery (V) | `ATRV`, measured by the adapter; works with the engine off | |
-| Tilt (roll/pitch) | QMI8658 accelerometer | Set current attitude as level |
-| Settings | - | Start/stop the settings Wi-Fi |
+| Page | Source |
+|---|---|
+| Boost (psi, vacuum below 0) | PID 0x0B manifold pressure minus PID 0x33 baro |
+| Coolant (°F) | PID 0x05 |
+| Intake air (°F) | PID 0x0F |
+| Battery (V) | `ATRV`, measured by the adapter; works with the engine off |
+
+**Press and hold** on any of these opens the Wi-Fi settings page and starts the
+access point. Hold on that page to stop it and go back. It isn't in the
+rotation.
 
 The page on screen gets polled as fast as the adapter answers. Everything else
 is polled in rotation every 400 ms.
 
 ## Settings over Wi-Fi
 
-Warning thresholds, backlight and the orientation flags are edited from a web
+Warning thresholds, backlight and the auto-rotate timing are edited from a web
 page the gauge serves itself, so retuning them doesn't need a reflash.
 
-Swipe to the **Settings** page and press and hold. The gauge brings up an access
+Press and hold on any gauge. The gauge brings up an access
 point and shows its name, password and address on screen; join it from a phone
 and the form should open on its own, or go to `http://192.168.4.1`. Saved values
 live in NVS and survive a reboot.
@@ -73,7 +75,7 @@ pio run -e outback_gauge_sim -t upload
 ```
 
 Just the settings page, on any ESP32-S3 with Wi-Fi — a SenseCAP Indicator, a
-bare devkit — with no display, touch, IMU or BLE compiled in. Lets the form be
+bare devkit — with no display, touch or BLE compiled in. Lets the form be
 used and debugged before the gauge hardware exists; every save comes back out
 over serial:
 
@@ -88,7 +90,7 @@ which BLE service it picked, and battery voltage every 10 s.
 
 Attach the monitor *before* resetting if you want the boot lines. The USB-C
 port is the S3's native USB, so the host has not enumerated it yet when
-`setup()` runs and everything it prints — the expander, IMU and touch
+`setup()` runs and everything it prints — the expander and touch
 addresses — is gone before anything is listening. A plain power-up gets you
 nothing until the first `[BAT]` line ten seconds later.
 
@@ -104,7 +106,7 @@ Needs no LVGL and no board.
 
 ## Test gesture detection on a Mac
 
-`src/gesture.h` has no hardware dependencies, so tap, long-press and swipe
+`src/gesture.h` has no hardware dependencies, so tap and long-press
 detection can be checked with simulated finger movements:
 
 ```bash
@@ -123,13 +125,10 @@ clang++ -std=c++17 -Isrc tools/gesture-test/gesture_test.cpp -o /tmp/gesture_tes
   `ATE0 ATL0 ATS0 ATH0 ATAT1 ATSP6`, falling back to `ATSP0`. Requests use the
   reply-count suffix (`010B1`) so the adapter answers without waiting out its
   timeout. Runs on its own task on core 0.
-- `src/imu.cpp`: roll and pitch are measured against a saved reference, so the
-  mount angle and the chip's orientation on the board don't matter. Assumes an
-  upright mount (vent or dash face), not flat on the console.
 - `src/touch.cpp`: SPD2010 touch controller at I2C 0x53, ported from
   Espressif's `esp_lcd_touch_spd2010`. The controller boots into a BIOS state
   and each poll walks it toward point-reporting mode, then reads the first
-  finger. `src/gesture.h` turns those reports into taps, long presses and swipes.
+  finger. `src/gesture.h` turns those reports into taps and long presses.
 - `src/board.cpp`: power latch (GPIO7), TCA9554 expander for the panel and
   touch resets, backlight PWM (GPIO5), battery ADC (GPIO8, ×3 divider).
 - `src/settings.cpp`: the runtime copy of everything the web page can change,
@@ -147,14 +146,11 @@ clang++ -std=c++17 -Isrc tools/gesture-test/gesture_test.cpp -o /tmp/gesture_tes
 ## Hardware status
 
 Confirmed on the board. Every guess in `src/config.h` turned out right, so
-none of the orientation flags needed changing from their defaults:
+the mount and touch mapping are fixed:
 
 - **Expander**: TCA9554 answers at 0x20, and the panel and touch resets work.
-- **IMU**: QMI8658 at 0x6B, the first of the two addresses probed.
-- **Touch**: present and reporting at boot. Taps and swipes go the right way,
-  so `TOUCH_SWAP_XY`, `TOUCH_INVERT_X` and `TOUCH_INVERT_Y` all stay 0.
-- **Screen orientation**: right way up, so `DISPLAY_ROTATE_180` stays 0.
-- **Tilt direction**: leans the right way, so both sign flags stay +1.
+- **Touch**: present and reporting at boot. Taps land where they should.
+- **Screen orientation**: right way up with `DISPLAY_MOUNT_DEG` 270.
 - **Settings Wi-Fi**: the access point comes up and the form saves, with BLE
   running on the same radio — the one thing the bench build couldn't prove.
 

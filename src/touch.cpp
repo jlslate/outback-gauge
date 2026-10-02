@@ -7,7 +7,6 @@
 #include "config.h"
 #include "display.h"
 #include "gesture.h"
-#include "settings.h"
 
 // Protocol ported from Espressif's esp_lcd_touch_spd2010 (esp-iot-solution,
 // Apache-2.0). The controller boots into a BIOS state and has to be walked
@@ -112,7 +111,6 @@ Report poll(uint16_t &x, uint16_t &y, bool &down) {
 GestureDetector gestures;
 
 void orient(uint16_t &x, uint16_t &y) {
-  const Settings &s = settings();
   // Panel coordinates to picture coordinates, the same mapping LVGL applies
   // for each display rotation (see indev_pointer_proc in lv_indev.c).
   const uint16_t last = LCD_SIZE - 1;
@@ -134,13 +132,6 @@ void orient(uint16_t &x, uint16_t &y) {
       break;
     }
   }
-  if (s.touchSwapXY) {
-    const uint16_t t = x;
-    x = y;
-    y = t;
-  }
-  if (s.touchInvertX) x = last - x;
-  if (s.touchInvertY) y = last - y;
 }
 
 }  // namespace

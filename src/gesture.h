@@ -5,12 +5,11 @@
 
 #include "touch.h"
 
-// Turns a stream of touch reports into tap / long-press / swipe events.
+// Turns a stream of touch reports into tap / long-press events.
 // Hardware-free so it can be exercised on a desktop.
 class GestureDetector {
  public:
   static constexpr int TAP_SLOP = 30;          // px a tap or long press may wander
-  static constexpr int SWIPE_MIN = 60;         // px of horizontal travel for a swipe
   static constexpr uint32_t TAP_MAX_MS = 700;
   static constexpr uint32_t LONG_MS = 900;
   static constexpr uint32_t LIFT_GAP_MS = 150;  // no reports for this long counts as lifted
@@ -38,8 +37,6 @@ class GestureDetector {
     held_ = false;
     if (longFired_) return TouchEvent::None;
 
-    const int dx = lastX_ - startX_, dy = lastY_ - startY_;
-    if (abs(dx) >= SWIPE_MIN && abs(dx) > abs(dy) * 3 / 2) return dx < 0 ? TouchEvent::SwipeLeft : TouchEvent::SwipeRight;
     if (withinSlop() && lastSeen_ - startAt_ < TAP_MAX_MS) return TouchEvent::Tap;
     return TouchEvent::None;
   }

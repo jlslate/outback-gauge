@@ -19,11 +19,9 @@ namespace {
 
 void dump() {
   const Settings &s = settings();
-  Serial.printf("[PROBE] boost %.1f psi  coolant %.0fF  intake %.0fF  volts %.1f-%.1f  tilt %.0fdeg  backlight %u%%\n",
-                s.boostWarnPsi, s.coolantWarnF, s.intakeWarnF, s.voltsLowWarn, s.voltsHighWarn,
-                s.tiltWarnDeg, s.backlight);
-  Serial.printf("[PROBE] rotate180=%d swapXY=%d invertX=%d invertY=%d rollSign=%d pitchSign=%d\n",
-                s.rotate180, s.touchSwapXY, s.touchInvertX, s.touchInvertY, s.rollSign, s.pitchSign);
+  Serial.printf("[PROBE] boost %.1f psi  coolant %.0fF  intake %.0fF  volts %.1f-%.1f  backlight %u%%\n",
+                s.boostWarnPsi, s.coolantWarnF, s.intakeWarnF, s.voltsLowWarn, s.voltsHighWarn, s.backlight);
+  Serial.printf("[PROBE] autoRotate=%d every %.1fs\n", s.autoRotate, s.autoRotateSecs);
 }
 
 }  // namespace

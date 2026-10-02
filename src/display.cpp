@@ -5,7 +5,6 @@
 
 #include "board.h"
 #include "config.h"
-#include "settings.h"
 
 namespace {
 
@@ -51,7 +50,7 @@ void display_init() {
   drv.flush_cb = flush;
   drv.draw_buf = &drawBuf;
   // Read once here rather than per frame: LVGL wants the rotation set before
-  // the driver is registered, so changing it needs a reboot.
+  // the driver is registered, so it can't change at runtime.
   switch (display_rotation()) {
     case 90:  drv.rotated = LV_DISP_ROT_90; break;
     case 180: drv.rotated = LV_DISP_ROT_180; break;
@@ -63,7 +62,7 @@ void display_init() {
 }
 
 int display_rotation() {
-  return (DISPLAY_MOUNT_DEG + (settings().rotate180 ? 180 : 0)) % 360;
+  return DISPLAY_MOUNT_DEG;
 }
 
 void display_loop() {

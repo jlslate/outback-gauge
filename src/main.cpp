@@ -3,7 +3,6 @@
 #include "board.h"
 #include "config.h"
 #include "display.h"
-#include "imu.h"
 #include "obd.h"
 #include "settings.h"
 #include "touch.h"
@@ -13,15 +12,13 @@ namespace {
 
 void handleTouch() {
   switch (touch_update()) {
-    case TouchEvent::Tap:
-    case TouchEvent::SwipeLeft: ui_nextPage(); break;
-    case TouchEvent::SwipeRight: ui_prevPage(); break;
+    case TouchEvent::Tap: ui_nextPage(); break;
     case TouchEvent::LongPress: ui_longPress(); break;
     case TouchEvent::None: break;
   }
 }
 
-// BOOT button: short press = next page, hold = page action.
+// BOOT button: short press = next page, hold = Wi-Fi page.
 void pollButton() {
   static bool down = false, held = false;
   static uint32_t since = 0;
@@ -47,7 +44,6 @@ void setup() {
   settings_load();  // before anything reads a threshold or an orientation flag
   board_init();
   display_init();
-  imu_init();
   touch_init();
   ui_init();
   display_refreshNow();  // first frame is drawn before the backlight comes on
@@ -56,7 +52,7 @@ void setup() {
 }
 
 void loop() {
-  static uint32_t lastImu = 0, lastTouch = 0, lastUi = 0, lastBat = 0;
+  static uint32_t lastTouch = 0, lastUi = 0, lastBat = 0;
   const uint32_t now = millis();
 
   pollButton();
@@ -70,13 +66,9 @@ void loop() {
     lastTouch = now;
     handleTouch();
   }
-  if (now - lastImu >= 20) {
-    lastImu = now;
-    imu_update();
-  }
   if (now - lastUi >= 50) {
     lastUi = now;
-    ui_update(obd_snapshot(), imu_tilt());
+    ui_update(obd_snapshot());
   }
   if (now - lastBat >= 10000) {
     lastBat = now;

@@ -45,22 +45,17 @@ struct Gauge {
   int32_t needleAt = INT32_MIN;
 };
 
-struct TiltPage {
-  lv_obj_t *screen, *horizon, *roll, *pitch, *hint;
-  lv_point_t pts[2];
-  int shownRoll = INT_MIN, shownPitch = INT_MIN;
-};
-
 struct SettingsPage {
   lv_obj_t *screen, *caption, *headline, *caption2, *detail, *url, *foot;
 };
 
-enum : uint8_t { PAGE_BOOST, PAGE_COOLANT, PAGE_INTAKE, PAGE_VOLTS, PAGE_TILT, PAGE_SETTINGS, PAGE_COUNT };
+enum : uint8_t { PAGE_BOOST, PAGE_COOLANT, PAGE_INTAKE, PAGE_VOLTS, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
 
-Gauge gauges[PAGE_TILT];
-TiltPage tiltPage;
+Gauge gauges[PAGE_COUNT];
 SettingsPage settingsPage;
 uint8_t page = PAGE_BOOST;
+uint32_t shownAt = 0;  // when the current page came up, for auto-rotate
+uint8_t returnPage = PAGE_BOOST;  // where the settings page goes back to
 float peakBoost = NAN;
 
 // ---- helpers ---------------------------------------------------------------
@@ -205,72 +200,6 @@ void setGauge(Gauge &g, bool isFresh, float v, bool warn, const char *status) {
   setText(g.status, status);
 }
 
-// ---- tilt page -------------------------------------------------------------
-
-void makeTilt() {
-  TiltPage &p = tiltPage;
-  p.screen = newScreen();
-
-  p.horizon = lv_line_create(p.screen);
-  lv_obj_set_size(p.horizon, LCD_SIZE, LCD_SIZE);
-  lv_obj_set_pos(p.horizon, 0, 0);
-  lv_obj_set_style_line_width(p.horizon, 6, 0);
-  lv_obj_set_style_line_color(p.horizon, lv_color_hex(0x29B6F6), 0);
-  lv_obj_set_style_line_rounded(p.horizon, true, 0);
-
-  // Fixed "vehicle" marker the horizon moves against.
-  static lv_point_t marker[] = {{C - 70, C}, {C - 24, C}, {C - 12, C + 12}, {C, C}, {C + 12, C + 12}, {C + 24, C}, {C + 70, C}};
-  lv_obj_t *m = lv_line_create(p.screen);
-  lv_obj_set_size(m, LCD_SIZE, LCD_SIZE);
-  lv_obj_set_pos(m, 0, 0);
-  lv_line_set_points(m, marker, sizeof marker / sizeof marker[0]);
-  lv_obj_set_style_line_width(m, 5, 0);
-  lv_obj_set_style_line_color(m, lv_color_hex(0xFFB300), 0);
-  lv_obj_set_style_line_rounded(m, true, 0);
-
-  lv_label_set_text(label(p.screen, &lv_font_montserrat_14, GREY, -95, 100), "ROLL");
-  lv_label_set_text(label(p.screen, &lv_font_montserrat_14, GREY, 95, 100), "PITCH");
-  p.roll = label(p.screen, &lv_font_montserrat_28, WHITE, -95, 128);
-  p.pitch = label(p.screen, &lv_font_montserrat_28, WHITE, 95, 128);
-  p.hint = label(p.screen, &lv_font_montserrat_14, GREY, 0, -120);
-}
-
-void updateTilt(const Tilt &t) {
-  TiltPage &p = tiltPage;
-  if (!t.ok) {
-    setText(p.roll, "--");
-    setText(p.pitch, "--");
-    setText(p.hint, "Motion sensor not found");
-    return;
-  }
-  setText(p.hint, t.calibrated ? "" : "Park level, press and hold to zero");
-
-  const int roll = lroundf(t.roll), pitch = lroundf(t.pitch);
-  if (roll == p.shownRoll && pitch == p.shownPitch) return;
-  p.shownRoll = roll;
-  p.shownPitch = pitch;
-
-  // Attitude-indicator style: the horizon counter-rotates against the body
-  // roll and drops as the nose rises.
-  const float a = -t.roll * DEG_TO_RAD;
-  const float dx = cosf(a), dy = sinf(a);
-  const float shift = constrain(t.pitch, -30.0f, 30.0f) * 4.0f;
-  const float cx = C - dy * shift, cy = C + dx * shift;
-  constexpr float half = 170;
-  p.pts[0] = {(lv_coord_t)(cx - dx * half), (lv_coord_t)(cy - dy * half)};
-  p.pts[1] = {(lv_coord_t)(cx + dx * half), (lv_coord_t)(cy + dy * half)};
-  lv_line_set_points(p.horizon, p.pts, 2);
-
-  const float warn = settings().tiltWarnDeg;
-  char buf[12];
-  snprintf(buf, sizeof buf, "%+d" DEG, roll);
-  setText(p.roll, buf);
-  setColor(p.roll, abs(roll) >= warn ? RED : WHITE);
-  snprintf(buf, sizeof buf, "%+d" DEG, pitch);
-  setText(p.pitch, buf);
-  setColor(p.pitch, abs(pitch) >= warn ? RED : WHITE);
-}
-
 // ---- settings page ---------------------------------------------------------
 
 void makeSettings() {
@@ -293,7 +222,7 @@ void updateSettings() {
     setText(p.caption2, "");
     setText(p.detail, "");
     setText(p.url, "");
-    setText(p.foot, "Press and hold to start");
+    setText(p.foot, "Wi-Fi starting...");
     return;
   }
   const uint32_t left = webconfig_secondsLeft();
@@ -310,16 +239,17 @@ void updateSettings() {
 // ---- paging ----------------------------------------------------------------
 
 lv_obj_t *screenFor(uint8_t p) {
-  if (p == PAGE_TILT) return tiltPage.screen;
   if (p == PAGE_SETTINGS) return settingsPage.screen;
   return gauges[p].screen;
 }
 
 void showPage(uint8_t p) {
   page = p;
+  shownAt = millis();
   lv_scr_load(screenFor(p));
-  obd_setFocus(p < PAGE_TILT ? gauges[p].cfg->focus : Focus::None);
+  obd_setFocus(p < PAGE_COUNT ? gauges[p].cfg->focus : Focus::None);
 
+  if (p == PAGE_SETTINGS) return;  // reached by long press only; never the page to boot into
   Preferences prefs;
   prefs.begin("gauge", false);
   prefs.putUChar("page", p);
@@ -333,11 +263,8 @@ void ui_init() {
   gauges[PAGE_COOLANT] = makeGauge(COOLANT);
   gauges[PAGE_INTAKE] = makeGauge(INTAKE);
   gauges[PAGE_VOLTS] = makeGauge(VOLTS);
-  makeTilt();
   makeSettings();
-  for (uint8_t i = 0; i < PAGE_TILT; i++) addPageDots(gauges[i].screen, i, PAGE_COUNT);
-  addPageDots(tiltPage.screen, PAGE_TILT, PAGE_COUNT);
-  addPageDots(settingsPage.screen, PAGE_SETTINGS, PAGE_COUNT);
+  for (uint8_t i = 0; i < PAGE_COUNT; i++) addPageDots(gauges[i].screen, i, PAGE_COUNT);
 
   Preferences prefs;
   prefs.begin("gauge", true);
@@ -346,8 +273,11 @@ void ui_init() {
   showPage(saved < PAGE_COUNT ? saved : PAGE_BOOST);
 }
 
-void ui_update(const Telemetry &t, const Tilt &tilt) {
+void ui_update(const Telemetry &t) {
   const Settings &s = settings();
+  // Wi-Fi went off by itself (web page button or idle timeout): back to the gauges.
+  if (page == PAGE_SETTINGS && !webconfig_active()) showPage(returnPage);
+  if (s.autoRotate && page != PAGE_SETTINGS && millis() - shownAt >= (uint32_t)(s.autoRotateSecs * 1000)) ui_nextPage();
   const bool live = t.state == ObdState::Live || t.state == ObdState::Simulated;
   if (live && fresh(t.boostAt) && !(t.boostPsi <= peakBoost)) peakBoost = t.boostPsi;
 
@@ -373,9 +303,6 @@ void ui_update(const Telemetry &t, const Tilt &tilt) {
     case PAGE_VOLTS:
       setGauge(gauges[PAGE_VOLTS], fresh(t.voltsAt), t.volts, t.volts < s.voltsLowWarn || t.volts > s.voltsHighWarn, status);
       break;
-    case PAGE_TILT:
-      updateTilt(tilt);
-      break;
     case PAGE_SETTINGS:
       updateSettings();
       break;
@@ -383,26 +310,24 @@ void ui_update(const Telemetry &t, const Tilt &tilt) {
 }
 
 void ui_applySettings() {
-  for (uint8_t i = 0; i < PAGE_TILT; i++) applyBands(gauges[i]);
-  tiltPage.shownRoll = INT_MIN;  // re-evaluates the tilt colours at the new threshold
+  for (uint8_t i = 0; i < PAGE_COUNT; i++) applyBands(gauges[i]);
 }
 
 void ui_nextPage() {
+  if (page == PAGE_SETTINGS) return;
   showPage((page + 1) % PAGE_COUNT);
 }
 
-void ui_prevPage() {
-  showPage((page + PAGE_COUNT - 1) % PAGE_COUNT);
-}
-
+// Hold on any gauge opens the Wi-Fi page and starts the access point; hold on
+// the Wi-Fi page stops it and goes back.
 void ui_longPress() {
-  if (page == PAGE_BOOST) peakBoost = NAN;
-  if (page == PAGE_TILT) {
-    imu_calibrate();
-    tiltPage.shownRoll = INT_MIN;  // force a redraw at the new zero
-  }
   if (page == PAGE_SETTINGS) {
-    if (webconfig_active()) webconfig_stop();
-    else webconfig_start();
+    webconfig_stop();
+    showPage(returnPage);
+    return;
   }
+  webconfig_start();
+  if (!webconfig_active()) return;  // the radio didn't come up; stay on the gauge
+  returnPage = page;
+  showPage(PAGE_SETTINGS);
 }

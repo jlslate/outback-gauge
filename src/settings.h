@@ -17,15 +17,9 @@ struct Settings {
   float intakeWarnF;
   float voltsLowWarn;
   float voltsHighWarn;
-  float tiltWarnDeg;
 
-  bool rotate180;  // needs a reboot to take effect
-  bool touchSwapXY;
-  bool touchInvertX;
-  bool touchInvertY;
-
-  int8_t rollSign;   // +1 or -1
-  int8_t pitchSign;
+  bool autoRotate;      // step through the gauges on a timer
+  float autoRotateSecs;  // seconds each gauge stays up
 };
 
 Settings settings_defaults();

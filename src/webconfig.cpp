@@ -47,15 +47,10 @@ void handleSave() {
   s.intakeWarnF = argFloat("intake", s.intakeWarnF);
   s.voltsLowWarn = argFloat("vlo", s.voltsLowWarn);
   s.voltsHighWarn = argFloat("vhi", s.voltsHighWarn);
-  s.tiltWarnDeg = argFloat("tilt", s.tiltWarnDeg);
   s.backlight = (uint8_t)argFloat("bl", s.backlight);
   // Unchecked boxes aren't posted at all, so presence is the value.
-  s.rotate180 = server.hasArg("rot");
-  s.touchSwapXY = server.hasArg("swap");
-  s.touchInvertX = server.hasArg("invx");
-  s.touchInvertY = server.hasArg("invy");
-  s.rollSign = server.hasArg("roll") ? -1 : 1;
-  s.pitchSign = server.hasArg("pitch") ? -1 : 1;
+  s.autoRotate = server.hasArg("auto");
+  s.autoRotateSecs = argFloat("secs", s.autoRotateSecs);
 
   settings_stage(s);
   // Rendered from what was just staged, not from settings(): the UI task adopts
