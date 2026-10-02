@@ -27,6 +27,7 @@ it does is also a touch gesture.
 | Page | Source |
 |---|---|
 | Boost (psi, vacuum below 0) | PID 0x0B manifold pressure minus PID 0x33 baro |
+| Engine load (%) | PID 0x04, which this car reports |
 | Coolant (°F) | PID 0x05 |
 | Oil temperature (°F) | PID 0x5C, which this car reports |
 | Intake air (°F) | PID 0x0F |

@@ -12,19 +12,20 @@ enum class ObdState : uint8_t {
 };
 
 // Which reading to poll as fast as possible; the rest are polled in rotation.
-enum class Focus : uint8_t { Boost, Coolant, Oil, Intake, Volts, None };
+enum class Focus : uint8_t { Boost, Load, Coolant, Oil, Intake, Volts, None };
 
 // Timestamps are millis() of the last good reading, 0 if never read.
 struct Telemetry {
   ObdState state = ObdState::Scanning;
   char adapter[24] = "";
   float boostPsi = 0;  // manifold pressure minus barometric; negative = vacuum
+  float loadPct = 0;   // calculated engine load, 0-100
   float coolantF = 0;
   float oilF = 0;
   float intakeF = 0;
   float volts = 0;     // measured by the adapter at the OBD port
   float rpm = 0;
-  uint32_t boostAt = 0, coolantAt = 0, oilAt = 0, intakeAt = 0, voltsAt = 0, rpmAt = 0;
+  uint32_t boostAt = 0, loadAt = 0, coolantAt = 0, oilAt = 0, intakeAt = 0, voltsAt = 0, rpmAt = 0;
 };
 
 void obd_start();  // runs the BLE/ELM327 client on its own task (core 0)

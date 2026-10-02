@@ -33,6 +33,7 @@ struct GaugeCfg {
 };
 
 const GaugeCfg BOOST = {"BOOST", "psi", "%.1f", -15, 20, 1, 36, 5, {{0, 20, RED, &Settings::boostWarnPsi}, {}}, Focus::Boost};
+const GaugeCfg LOAD = {"ENGINE LOAD", "%", "%.0f", 0, 100, 1, 11, 2, {{}, {}}, Focus::Load};
 const GaugeCfg COOLANT = {"COOLANT", DEG "F", "%.0f", 100, 260, 1, 17, 2, {{100, 140, BLUE}, {0, 260, RED, &Settings::coolantWarnF}}, Focus::Coolant};
 const GaugeCfg OIL = {"OIL TEMP", DEG "F", "%.0f", 100, 300, 1, 21, 5, {{100, 140, BLUE}, {0, 300, RED, &Settings::oilWarnF}}, Focus::Oil};
 const GaugeCfg INTAKE = {"INTAKE AIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 200, RED, &Settings::intakeWarnF}, {}}, Focus::Intake};
@@ -50,7 +51,7 @@ struct SettingsPage {
   lv_obj_t *screen, *caption, *headline, *caption2, *detail, *url, *foot;
 };
 
-enum : uint8_t { PAGE_BOOST, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
+enum : uint8_t { PAGE_BOOST, PAGE_LOAD, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
 
 Gauge gauges[PAGE_COUNT];
 SettingsPage settingsPage;
@@ -261,6 +262,7 @@ void showPage(uint8_t p) {
 
 void ui_init() {
   gauges[PAGE_BOOST] = makeGauge(BOOST);
+  gauges[PAGE_LOAD] = makeGauge(LOAD);
   gauges[PAGE_COOLANT] = makeGauge(COOLANT);
   gauges[PAGE_OIL] = makeGauge(OIL);
   gauges[PAGE_INTAKE] = makeGauge(INTAKE);
@@ -296,6 +298,9 @@ void ui_update(const Telemetry &t) {
       setGauge(gauges[PAGE_BOOST], fresh(t.boostAt), t.boostPsi, t.boostPsi >= s.boostWarnPsi, status);
       break;
     }
+    case PAGE_LOAD:
+      setGauge(gauges[PAGE_LOAD], fresh(t.loadAt), t.loadPct, false, status);
+      break;
     case PAGE_COOLANT:
       setGauge(gauges[PAGE_COOLANT], fresh(t.coolantAt), t.coolantF, t.coolantF >= s.coolantWarnF, status);
       break;

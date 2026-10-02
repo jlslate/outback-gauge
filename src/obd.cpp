@@ -49,11 +49,12 @@ void simulate() {
     edit([&](Telemetry &s) {
       s.boostPsi = min(-11.5f + throttle * 29.0f + random(-20, 20) / 100.0f, 17.8f);
       s.coolantF = min(120.0f + t * 0.8f, 205.0f) + 2.0f * sinf(t * 0.1f);
+      s.loadPct = constrain(25.0f + 70.0f * throttle + random(-20, 20) / 10.0f, 0.0f, 100.0f);
       s.oilF = min(110.0f + t * 0.5f, 215.0f) + 1.5f * sinf(t * 0.08f);
       s.intakeF = 88.0f + 18.0f * throttle;
       s.volts = 14.1f + 0.1f * sinf(t * 1.3f);
       s.rpm = 800.0f + throttle * 4500.0f;
-      s.boostAt = s.coolantAt = s.oilAt = s.intakeAt = s.voltsAt = s.rpmAt = now;
+      s.boostAt = s.loadAt = s.coolantAt = s.oilAt = s.intakeAt = s.voltsAt = s.rpmAt = now;
     });
     vTaskDelay(pdMS_TO_TICKS(50));
   }
@@ -285,7 +286,7 @@ bool ecuResponds(uint32_t timeoutMs) {
 
 // ---- polling ---------------------------------------------------------------
 
-enum class Item : uint8_t { Map, Coolant, Oil, Intake, Volts, Rpm };
+enum class Item : uint8_t { Map, Load, Coolant, Oil, Intake, Volts, Rpm };
 
 float baroKpa = 101.3f;
 
@@ -299,6 +300,7 @@ bool pidSupported(uint8_t pid) { return !supportKnown || pidKnown[pid]; }
 bool itemSupported(Item item) {
   switch (item) {
     case Item::Map: return pidSupported(0x0B) || pidSupported(0x87);
+    case Item::Load: return pidSupported(0x04);
     case Item::Coolant: return pidSupported(0x05);
     case Item::Oil: return pidSupported(0x5C);
     case Item::Intake: return pidSupported(0x0F) || pidSupported(0x68);
@@ -363,6 +365,10 @@ bool poll(Item item) {
       edit([&](Telemetry &t) { t.boostPsi = (kpa - baroKpa) * 0.1450377f, t.boostAt = now; });
       return true;
     }
+    case Item::Load:
+      if (!readPid(0x04, b, 1)) return false;
+      edit([&](Telemetry &t) { t.loadPct = b[0] * 100.0f / 255.0f, t.loadAt = now; });
+      return true;
     case Item::Coolant:
       if (!readPid(0x05, b, 1)) return false;
       edit([&](Telemetry &t) { t.coolantF = cToF(b[0] - 40), t.coolantAt = now; });
@@ -414,6 +420,7 @@ bool readBaro() {
 bool focusItem(Focus f, Item &out) {
   switch (f) {
     case Focus::Boost: out = Item::Map; return true;
+    case Focus::Load: out = Item::Load; return true;
     case Focus::Coolant: out = Item::Coolant; return true;
     case Focus::Oil: out = Item::Oil; return true;
     case Focus::Intake: out = Item::Intake; return true;
@@ -434,7 +441,7 @@ void runSession() {
   }
   if (ecu) discoverPids();
 
-  static const Item slowItems[] = {Item::Coolant, Item::Oil, Item::Intake, Item::Volts, Item::Rpm};
+  static const Item slowItems[] = {Item::Load, Item::Coolant, Item::Oil, Item::Intake, Item::Volts, Item::Rpm};
   size_t slowIdx = 0;
   uint32_t lastSlow = 0, lastBaro = 0;
   int failures = 0;
