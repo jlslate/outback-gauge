@@ -18,10 +18,10 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 
 // How the board is turned in the case, in degrees: 0, 90, 180 or 270. The
 // screen is polarized, and so are sunglasses, so the board sits a quarter turn
-// counter-clockwise (USB-C port on the viewer's right) and the picture is
+// clockwise (USB-C port on the viewer's left) and the picture is
 // turned to match. This is the mount, not a preference; it stays fixed. If the
-// picture is sideways the wrong way, try 90.
-#define DISPLAY_MOUNT_DEG 270
+// picture is sideways the wrong way, try 270.
+#define DISPLAY_MOUNT_DEG 90
 
 // Step through the gauges on a timer. A tap still moves on early.
 #define AUTO_ROTATE 1

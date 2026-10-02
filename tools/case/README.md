@@ -41,14 +41,26 @@ number at the top of `case.py` and a reprint of the one part.
 wall into the arcs. Both parts have to be regenerated together — a bayonet
 shell will not take a screw cover.
 
-In the sled, the gauge stands square with its bottom edge 5 mm above the sled
-(2 mm above its top face), its face flush with the sled's front, and its
-screen center 32 mm above the sled's underside. The USB-C port points **right** as you look at the screen (`USB_DEG` in
-`case.py`, whose frame is mirrored, so 180 there prints on the right), out of the
+In the sled, the gauge stands with its bottom edge 5 mm above the sled
+(2 mm above its top face) and its screen center 32 mm above the sled's underside. The USB-C port points **left** as you look at the screen (`USB_DEG` in
+`case.py`, whose frame is mirrored, so 0 there prints on the left), out of the
 side of the case well clear of the arms, and the cable runs back to the dash
-port. It is turned a quarter from the board's natural bottom-edge position
+port. It is turned a quarter (clockwise) from the board's natural bottom-edge position
 because the screen is polarized: with the port down, the picture goes black
 through polarized sunglasses.
+
+The gauge is also turned toward the driver, on the viewer's left. The left arm
+cannot go any further back, so the right one comes forward and the face is
+yawed about the left magnet by whatever angle puts the sled's front edge
+`FRONT_STEP` (10 mm) forward on the right. `sled.py` solves that angle (10.7°
+at 10 mm) and prints it. The front edge runs straight across the left, follows
+the glass's plane up to the right arm, then runs straight again to the right
+side, so it is no longer parallel to the back. The right end therefore
+overhangs the well's mouth by 10 mm.
+
+![The sled from above](../../docs/sled-plan.png)
+
+`plan_view.py` redraws that picture from the current numbers.
 
 ## Printing
 
@@ -80,14 +92,14 @@ through polarized sunglasses.
 2. Stick two layers of the foam tape on the back of the glass, round its rim
    where the arcs will press. This is the version that was built and works: it
    squashes into the 1 mm gap and takes up tolerance. The cover has no arc on
-   the right, which is how you tell which way round it is: that gap faces the
-   USB-C notch.
+   the USB-C side, which is how you tell which way round it is: that gap faces
+   the notch.
 
    ![Where the foam goes](../../docs/foam-placement.png)
 
    ![Section through an arc](../../docs/foam-section.png)
 3. Drop the board into the front shell from behind, glass first, turning it
-   so the USB-C port lines up with the notch on the right. Neither side
+   so the USB-C port lines up with the notch on the left. Neither side
    button gets a hole — see [Buttons](#buttons).
 4. Line the three lugs up with the three channels in the shell's back face —
    only one rotation fits — press the cover in against the foam, and twist it
@@ -206,6 +218,7 @@ Everything is set by the constants at the top of `case.py`:
 - How far the pads stand out, and so how far the arms sit back:
   `SIDE_PAD_H`. Raising it needs a matching reprint of the sled
 - Gauge height, arm size and the tray well: the constants at the top of `sled.py`
+- How far the right side of the sled (and the gauge's turn) comes forward: `FRONT_STEP`
 
 Regenerate after a change. The script checks the case against an outline of
 the board and the USB-C plug path, and fails if anything collides.

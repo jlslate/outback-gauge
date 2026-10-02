@@ -43,12 +43,12 @@ USB_Z = (8.3, 11.4)  # USB-C receptacle, depth range behind the glass front
 # drawing has it at 270 (down); the screen is polarized and so are sunglasses,
 # so the board is turned a quarter so the picture is readable through them.
 # NOTE the frame here is left-handed (x right, y up, z away from the viewer),
-# so the printed part is mirrored left-for-right: 180 prints with the port on
-# the viewer's RIGHT, board turned a quarter counter-clockwise. Left-right
-# angles in this file are mirrored the same way. The
-# magnet pads and everything else about the shell stay where the cradle expects
-# them -- only the board, and what has to keep clear of it, turns.
-USB_DEG = 180
+# so the printed part is mirrored left-for-right: 0 prints with the port on
+# the viewer's LEFT, board turned a quarter clockwise. Left-right angles in
+# this file are mirrored the same way. The magnet pads and everything else
+# about the shell stay where the cradle expects them -- only the board, and
+# what has to keep clear of it, turns.
+USB_DEG = 0
 BOARD_TURN = USB_DEG - 270   # degrees the board is turned from its drawing
 BUTTON_Z = 9.0       # PWR/BOOT side switches, depth behind the glass front
 PWR_DEG, BOOT_DEG = 32 + BOARD_TURN, -38 + BOARD_TURN  # angles seen from the front (0 = 3 o'clock)

@@ -150,7 +150,7 @@ the mount and touch mapping are fixed:
 
 - **Expander**: TCA9554 answers at 0x20, and the panel and touch resets work.
 - **Touch**: present and reporting at boot. Taps land where they should.
-- **Screen orientation**: right way up with `DISPLAY_MOUNT_DEG` 270.
+- **Screen orientation**: right way up with `DISPLAY_MOUNT_DEG` 90.
 - **Settings Wi-Fi**: the access point comes up and the form saves, with BLE
   running on the same radio — the one thing the bench build couldn't prove.
 
