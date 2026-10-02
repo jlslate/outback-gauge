@@ -34,6 +34,7 @@ struct GaugeCfg {
 
 const GaugeCfg BOOST = {"BOOST", "psi", "%.1f", -15, 20, 1, 36, 5, {{0, 20, RED, &Settings::boostWarnPsi}, {}}, Focus::Boost};
 const GaugeCfg COOLANT = {"COOLANT", DEG "F", "%.0f", 100, 260, 1, 17, 2, {{100, 140, BLUE}, {0, 260, RED, &Settings::coolantWarnF}}, Focus::Coolant};
+const GaugeCfg OIL = {"OIL TEMP", DEG "F", "%.0f", 100, 300, 1, 21, 5, {{100, 140, BLUE}, {0, 300, RED, &Settings::oilWarnF}}, Focus::Oil};
 const GaugeCfg INTAKE = {"INTAKE AIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 200, RED, &Settings::intakeWarnF}, {}}, Focus::Intake};
 const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts};
 
@@ -49,7 +50,7 @@ struct SettingsPage {
   lv_obj_t *screen, *caption, *headline, *caption2, *detail, *url, *foot;
 };
 
-enum : uint8_t { PAGE_BOOST, PAGE_COOLANT, PAGE_INTAKE, PAGE_VOLTS, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
+enum : uint8_t { PAGE_BOOST, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
 
 Gauge gauges[PAGE_COUNT];
 SettingsPage settingsPage;
@@ -105,10 +106,10 @@ bool fresh(uint32_t stamp) {
 
 const char *statusFor(const Telemetry &t, char *buf, size_t n) {
   switch (t.state) {
-    case ObdState::Scanning: return "Searching for OBD adapter";
+    case ObdState::Scanning: return "Searching for adapter";
     case ObdState::Connecting: snprintf(buf, n, "Connecting to %s", t.adapter); return buf;
     case ObdState::Initializing: return "Starting adapter";
-    case ObdState::NoEcu: return "Adapter ready - start the car";
+    case ObdState::NoEcu: return "Adapter ready: start car";
     case ObdState::Simulated: return "SIMULATED DATA";
     case ObdState::Live: break;
   }
@@ -148,7 +149,7 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   g.screen = newScreen();
 
   // Created before the meter so the needle sweeps over it.
-  lv_label_set_text(label(g.screen, &lv_font_montserrat_20, GREY, 0, -72), cfg.title);
+  lv_label_set_text(label(g.screen, &lv_font_montserrat_24, GREY, 0, -72), cfg.title);
 
   g.meter = lv_meter_create(g.screen);
   lv_obj_set_size(g.meter, LCD_SIZE - 12, LCD_SIZE - 12);
@@ -157,7 +158,7 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   lv_obj_set_style_border_width(g.meter, 0, 0);
   lv_obj_set_style_pad_all(g.meter, 10, 0);
   lv_obj_set_style_text_color(g.meter, lv_color_white(), LV_PART_TICKS);
-  lv_obj_set_style_text_font(g.meter, &lv_font_montserrat_20, LV_PART_TICKS);
+  lv_obj_set_style_text_font(g.meter, &lv_font_montserrat_24, LV_PART_TICKS);
   lv_obj_set_style_bg_color(g.meter, lv_color_hex(0x424242), LV_PART_INDICATOR);  // needle hub
   lv_obj_set_style_size(g.meter, 24, LV_PART_INDICATOR);
 
@@ -178,8 +179,8 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   if (cfg.mul > 1) lv_obj_add_event_cb(g.meter, scaledTickLabels, LV_EVENT_DRAW_PART_BEGIN, (void *)&cfg);
 
   g.value = label(g.screen, &lv_font_montserrat_48, WHITE, 0, 92);
-  lv_label_set_text(label(g.screen, &lv_font_montserrat_20, GREY, 0, 136), cfg.unit);
-  g.status = label(g.screen, &lv_font_montserrat_14, GREY, 0, 166);
+  lv_label_set_text(label(g.screen, &lv_font_montserrat_24, GREY, 0, 136), cfg.unit);
+  g.status = label(g.screen, &lv_font_montserrat_18, GREY, 0, 162);
   return g;
 }
 
@@ -205,13 +206,13 @@ void setGauge(Gauge &g, bool isFresh, float v, bool warn, const char *status) {
 void makeSettings() {
   SettingsPage &p = settingsPage;
   p.screen = newScreen();
-  lv_label_set_text(label(p.screen, &lv_font_montserrat_20, GREY, 0, -120), "SETTINGS");
-  p.caption = label(p.screen, &lv_font_montserrat_14, GREY, 0, -74);
-  p.headline = label(p.screen, &lv_font_montserrat_28, WHITE, 0, -40);
-  p.caption2 = label(p.screen, &lv_font_montserrat_14, GREY, 0, 4);
-  p.detail = label(p.screen, &lv_font_montserrat_28, WHITE, 0, 36);
-  p.url = label(p.screen, &lv_font_montserrat_20, BLUE, 0, 82);
-  p.foot = label(p.screen, &lv_font_montserrat_14, GREY, 0, 122);
+  lv_label_set_text(label(p.screen, &lv_font_montserrat_24, GREY, 0, -120), "SETTINGS");
+  p.caption = label(p.screen, &lv_font_montserrat_18, GREY, 0, -74);
+  p.headline = label(p.screen, &lv_font_montserrat_32, WHITE, 0, -40);
+  p.caption2 = label(p.screen, &lv_font_montserrat_18, GREY, 0, 4);
+  p.detail = label(p.screen, &lv_font_montserrat_32, WHITE, 0, 36);
+  p.url = label(p.screen, &lv_font_montserrat_24, BLUE, 0, 82);
+  p.foot = label(p.screen, &lv_font_montserrat_18, GREY, 0, 122);
 }
 
 void updateSettings() {
@@ -261,6 +262,7 @@ void showPage(uint8_t p) {
 void ui_init() {
   gauges[PAGE_BOOST] = makeGauge(BOOST);
   gauges[PAGE_COOLANT] = makeGauge(COOLANT);
+  gauges[PAGE_OIL] = makeGauge(OIL);
   gauges[PAGE_INTAKE] = makeGauge(INTAKE);
   gauges[PAGE_VOLTS] = makeGauge(VOLTS);
   makeSettings();
@@ -296,6 +298,9 @@ void ui_update(const Telemetry &t) {
     }
     case PAGE_COOLANT:
       setGauge(gauges[PAGE_COOLANT], fresh(t.coolantAt), t.coolantF, t.coolantF >= s.coolantWarnF, status);
+      break;
+    case PAGE_OIL:
+      setGauge(gauges[PAGE_OIL], fresh(t.oilAt), t.oilF, t.oilF >= s.oilWarnF, status);
       break;
     case PAGE_INTAKE:
       setGauge(gauges[PAGE_INTAKE], fresh(t.intakeAt), t.intakeF, t.intakeF >= s.intakeWarnF, status);

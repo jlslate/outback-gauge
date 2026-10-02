@@ -44,6 +44,7 @@ void handleSave() {
   Settings s = settings();
   s.boostWarnPsi = argFloat("boost", s.boostWarnPsi);
   s.coolantWarnF = argFloat("cool", s.coolantWarnF);
+  s.oilWarnF = argFloat("oil", s.oilWarnF);
   s.intakeWarnF = argFloat("intake", s.intakeWarnF);
   s.voltsLowWarn = argFloat("vlo", s.voltsLowWarn);
   s.voltsHighWarn = argFloat("vhi", s.voltsHighWarn);

@@ -30,6 +30,7 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 // Value turns red at or beyond these.
 #define BOOST_WARN_PSI 17.0f
 #define COOLANT_WARN_F 230.0f
+#define OIL_WARN_F 250.0f
 #define INTAKE_WARN_F 140.0f
 #define VOLTS_LOW_WARN 12.0f
 #define VOLTS_HIGH_WARN 15.2f

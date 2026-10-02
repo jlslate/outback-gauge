@@ -66,6 +66,7 @@ String render(const Settings &s, const char *note) {
          "<h2>Warnings</h2>");
   num(o, "boost", "Boost", "min=0 max=20 step=0.5", s.boostWarnPsi, 1, "psi");
   num(o, "cool", "Coolant", "min=150 max=260 step=1", s.coolantWarnF, 0, "&deg;F");
+  num(o, "oil", "Oil", "min=180 max=300 step=1", s.oilWarnF, 0, "&deg;F");
   num(o, "intake", "Intake air", "min=60 max=200 step=1", s.intakeWarnF, 0, "&deg;F");
   num(o, "vlo", "Battery low", "min=10 max=14 step=0.1", s.voltsLowWarn, 1, "V");
   num(o, "vhi", "Battery high", "min=13 max=16 step=0.1", s.voltsHighWarn, 1, "V");

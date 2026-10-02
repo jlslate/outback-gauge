@@ -14,6 +14,7 @@ struct Settings {
 
   float boostWarnPsi;
   float coolantWarnF;
+  float oilWarnF;
   float intakeWarnF;
   float voltsLowWarn;
   float voltsHighWarn;

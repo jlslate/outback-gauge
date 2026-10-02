@@ -28,6 +28,7 @@ it does is also a touch gesture.
 |---|---|
 | Boost (psi, vacuum below 0) | PID 0x0B manifold pressure minus PID 0x33 baro |
 | Coolant (°F) | PID 0x05 |
+| Oil temperature (°F) | PID 0x5C, which this car reports |
 | Intake air (°F) | PID 0x0F |
 | Battery (V) | `ATRV`, measured by the adapter; works with the engine off |
 

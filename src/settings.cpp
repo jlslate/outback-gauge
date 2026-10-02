@@ -10,7 +10,7 @@ namespace {
 // Stored as one blob rather than a key per field: the whole struct round-trips
 // in two NVS calls, and a version mismatch after a firmware change falls back
 // to defaults instead of leaving half the fields stale. Bump on any layout change.
-constexpr uint16_t LAYOUT = 2;
+constexpr uint16_t LAYOUT = 3;
 
 struct Stored {
   uint16_t layout;
@@ -34,6 +34,7 @@ void sanitize(Settings &s) {
   s.backlight = (uint8_t)clampf(s.backlight, 5, 100);
   s.boostWarnPsi = clampf(s.boostWarnPsi, 0, 20);
   s.coolantWarnF = clampf(s.coolantWarnF, 150, 260);
+  s.oilWarnF = clampf(s.oilWarnF, 180, 300);
   s.intakeWarnF = clampf(s.intakeWarnF, 60, 200);
   s.voltsLowWarn = clampf(s.voltsLowWarn, 10, 14);
   s.voltsHighWarn = clampf(s.voltsHighWarn, 13, 16);
@@ -49,6 +50,7 @@ Settings settings_defaults() {
   s.backlight = BACKLIGHT_PERCENT;
   s.boostWarnPsi = BOOST_WARN_PSI;
   s.coolantWarnF = COOLANT_WARN_F;
+  s.oilWarnF = OIL_WARN_F;
   s.intakeWarnF = INTAKE_WARN_F;
   s.voltsLowWarn = VOLTS_LOW_WARN;
   s.voltsHighWarn = VOLTS_HIGH_WARN;
