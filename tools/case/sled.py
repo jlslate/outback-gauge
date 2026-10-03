@@ -10,18 +10,19 @@ to the car and the tray still lifts out. The sled is a frame, not a solid
 sheet: it rests on the flat rim around the moulded phone and Qi symbols and
 bridges over them.
 
-The gauge stands perpendicular to the sled with its bottom edge 8 mm clear,
-cradled by two arms at the front. The arms hold it at 225 and 315 degrees,
-where the shell carries magnets in its side wall, and the gap between them
-is well below the USB-C port, which points sideways out of the case (case.USB_DEG; it prints on the
-viewer's left).
+The gauge is cradled by two arms at the front. The arms hold it at 225 and
+315 degrees, where the shell carries magnets in its side wall, and the gap
+between them is well below the USB-C port, which points sideways out of the
+case (case.USB_DEG; it prints on the viewer's left).
 
-The gauge is turned toward the driver, who sits on the viewer's left: the left
-arm stays where it was (it can go no further back) and the right arm comes
-forward, so the face is yawed by YAW degrees and the sled's front edge is no
-longer parallel to its back. From the left it runs straight to the glass's
-plane, follows the glass up to the right arm, then runs straight again across
-to the right side, FRONT_STEP mm forward of where it started.
+The gauge is turned toward the driver, who sits on the viewer's left, and
+tipped up toward their eyes: YAW degrees about the vertical, then PITCH
+degrees of tilt. The left arm's magnet stays where it was (it can go no
+further back), so the right arm comes forward and the sled's front edge is no
+longer parallel to its back. Every arm stands on a column straight down to the
+sled, so nothing overhangs, and the front edge is cut to clear the arms: flat
+across the left, slanting forward along the yaw to the right arm, then flat
+again to the right side.
 
 Tray well, measured: 147 mm long, 113 mm wide at the mouth tapering to 80 mm
 at the back, 13 mm deep, no lip at the front.
@@ -51,8 +52,9 @@ FRONT_MARGIN = 2.0    # solid front rail, this far past the back of the arms
 # ---- the cradle --------------------------------------------------------------
 GAUGE_GAP = 2.0       # bottom of the case above the sled's top face; it was 6
                       # while the USB-C plug dropped out of a notch down there
-GAUGE_X = 22.5        # sideways offset from the sled centerline (+x is the viewer's left)
-FRONT_STEP = 10.0     # how far the right-hand front edge comes forward of the left
+GAUGE_X = 19.0        # sideways offset from the sled centerline (+x is the viewer's left)
+YAW = 30.0            # degrees the face is turned toward the driver, about the vertical
+PITCH = 20.0          # degrees the face is then tipped up
 # Case mid-depth, back from the sled's front edge: half the case's depth, so
 # the glass ends up flush with the front of the sled.
 GAUGE_Y = -(case.CUP_LEN + case.MAGNET_FLOOR) / 2
@@ -72,27 +74,76 @@ ARM_UP = case.MAGNET_D / 2 + case.MAGNET_CLEAR + ARM_PAD_WALL
 ARM_DOWN = 7.5        # and down toward the gap at the bottom; keeps the 12.3 mm
                       # magnet inside the pad, which is centered on the tangent
 
-CENTER_Z = SLED_T + GAUGE_GAP + case.R_OUT     # case center above the sled's underside
+NOMINAL_Z = SLED_T + GAUGE_GAP + case.R_OUT    # case center above the sled's underside, before it is tipped
 
 
 def front_rail():
     """Wide enough that both arms sit entirely on the sled's front rail."""
-    return -_arms(YAW).bounding_box()[1] + FRONT_MARGIN
+    return -_arms().bounding_box()[1] + FRONT_MARGIN
+
+
+def _right_arm_rear():
+    """How far back the right arm's footprint reaches (its lowest y)."""
+    polys = _arms().project().to_polygons()
+    right = min(polys, key=lambda p: p[:, 0].mean())
+    return float(right[:, 1].min())
 
 
 def _trapezoid(half_front, half_rear, length):
     return CrossSection([[(-half_front, 0), (-half_rear, -length), (half_rear, -length), (half_front, 0)]])
 
 
+def _front_chain():
+    """The front edge's corners, from the left to the right: the upper hull of
+    the arms' footprint, moved forward by FRONT_MARGIN. It is the shortest
+    edge that still clears both arms, so it follows the arms and not a fixed
+    slope."""
+    pts = sorted({(round(x, 6), round(y, 6)) for poly in _arms().project().to_polygons() for x, y in poly})                                              # right (-x) to left
+    hull = []
+    for p in pts:
+        while len(hull) >= 2 and ((hull[-1][0] - hull[-2][0]) * (p[1] - hull[-2][1])
+                                  - (hull[-1][1] - hull[-2][1]) * (p[0] - hull[-2][0])) >= 0:
+            hull.pop()
+        hull.append(p)
+    return [(x, y + FRONT_MARGIN) for x, y in hull[::-1]]       # left (+x) to right
+
+
+def _front_edge():
+    """The front edge's corners from the left arm to the right arm's front
+    corner, with the line through the first two carried back to the sled's
+    left side so the angle continues instead of ending in a square corner."""
+    chain = _front_chain()
+    tip = max(range(len(chain)), key=lambda i: chain[i][1])
+    return chain[:tip + 1]
+
+
+def _cross_y0(p, q):
+    """x where the line through p and q is level with the well's mouth (y = 0)."""
+    return p[0] + (0.0 - p[1]) * (q[0] - p[0]) / (q[1] - p[1])
+
+
 def front_wedge(half_f):
-    """The part of the front edge that comes forward: straight from the left to
-    where the glass's plane crosses it, along the glass to the far edge of the
-    right arm, then straight across to the right side."""
-    glass = _glass_line(YAW)
-    x_end = _arms(YAW).bounding_box()[0]
-    x_start = PIVOT[0] + (glass(PIVOT[0]) - 0) / math.tan(math.radians(YAW))   # where the glass is at y = 0
-    y_end = glass(x_end)
-    return CrossSection([[(x_start, 0), (x_end, y_end), (-half_f, y_end), (-half_f, 0)]])
+    """The part of the sled that comes forward past the well's mouth: the
+    angled edge along the arms up to the right arm's front corner, then flat
+    to the right side."""
+    edge = _front_edge()
+    ahead = [p for p in edge if p[1] > 0]
+    first = edge.index(ahead[0])
+    start = (_cross_y0(edge[first - 1], edge[first]), 0.0) if first else edge[0]
+    tip = edge[-1]
+    return CrossSection([[start] + ahead + [(-half_f, tip[1]), (-half_f, 0)]])
+
+
+def left_cut(half_f):
+    """The corner of the well's outline that sits ahead of the angled edge,
+    so the edge carries on to the sled's left side."""
+    edge = _front_edge()
+    ahead = [p for p in edge if p[1] > 0]
+    first = edge.index(ahead[0])
+    p, q = edge[first - 1], edge[first]
+    x_c, far = _cross_y0(p, q), half_f + 5
+    y_far = p[1] + (far - p[0]) * (q[1] - p[1]) / (q[0] - p[0])
+    return CrossSection([[(x_c, 0.5), (x_c, 0.0), (far, y_far), (far, 0.5)]])
 
 
 def sled():
@@ -100,7 +151,7 @@ def sled():
     taper = (WELL_W_FRONT - WELL_W_REAR) / 2 / WELL_LEN
     half_f = (WELL_W_FRONT - 2 * CLEAR) / 2
     half_r = half_f - taper * SLED_LEN
-    frame = _trapezoid(half_f, half_r, SLED_LEN)
+    frame = _trapezoid(half_f, half_r, SLED_LEN) - left_cut(half_f)
     frame += front_wedge(half_f)
     frame = frame.extrude(SLED_T)
 
@@ -110,6 +161,12 @@ def sled():
     at = lambda y: half_f - taper * y                      # half width, y back from the mouth
     inner = _trapezoid(at(front) - rail, at(SLED_LEN - rail) - rail,
                        SLED_LEN - rail - front).translate([0, -front])
+    # The right arm stands well forward of the left, so the right-hand front
+    # window can run on up to it instead of stopping where the left arm's rail ends.
+    y_right = _right_arm_rear() - FRONT_MARGIN
+    if y_right > -front:
+        inner += CrossSection([[(-rib / 2, y_right), (-(half_f - rail), y_right), (-(half_f - rail), 0),
+                                (-(at(front) - rail), -front), (-rib / 2, -front)]])
     windows = inner.extrude(SLED_T + 2).translate([0, 0, -1])
     windows -= box(-rib / 2, rib / 2, -SLED_LEN, 0, -1, SLED_T + 1)      # center rib
     windows -= box(-half_f, half_f, -SLED_LEN / 2 - rib / 2, -SLED_LEN / 2 + rib / 2, -1, SLED_T + 1)
@@ -121,67 +178,48 @@ def _disc_r():
     return case.SIDE_PAD_R + ARM_FIT + case.MAGNET_LEADIN + case.MAGNET_T / 2
 
 
-def _magnet_xy(deg):
-    """Where a magnet sits in plan, before the gauge is turned."""
-    return (GAUGE_X + _disc_r() * math.cos(math.radians(deg)), -case.SIDE_MAGNET_Z)
+# The turn is about the left magnet (the 315 deg one, +x), which stays put in
+# plan. Everything is built stood up and square at the nominal height, then
+# yawed and tipped about that point, then lifted until the tipped case's
+# lowest edge is GAUGE_GAP clear of the sled.
+_LEFT = max(case.SIDE_MAGNET_DEG, key=lambda d: math.cos(math.radians(d)))
+PIVOT = (GAUGE_X + _disc_r() * math.cos(math.radians(_LEFT)), -case.SIDE_MAGNET_Z,
+         NOMINAL_Z + _disc_r() * math.sin(math.radians(_LEFT)))
 
 
-# The turn is about the left magnet (the 315 deg one, +x), which stays put.
-PIVOT = _magnet_xy(max(case.SIDE_MAGNET_DEG, key=lambda d: math.cos(math.radians(d))))
+def _pose(solid):
+    solid = solid.rotate([90, 0, 0]).translate([GAUGE_X, GAUGE_Y, NOMINAL_Z])
+    return solid.translate([-v for v in PIVOT]).rotate([PITCH, 0, -YAW]).translate(PIVOT)
 
 
-def _yawed(solid, yaw):
-    return solid.translate([-PIVOT[0], -PIVOT[1], 0]).rotate([0, 0, -yaw]).translate([PIVOT[0], PIVOT[1], 0])
-
-
-def _place(solid, yaw):
-    return _yawed(solid.rotate([90, 0, 0]).translate([GAUGE_X, GAUGE_Y, CENTER_Z]), yaw)
-
-
-def _yawed_magnet(deg):
-    x, y = _magnet_xy(deg)
-    a = math.radians(-YAW)
-    dx, dy = x - PIVOT[0], y - PIVOT[1]
-    return (PIVOT[0] + dx * math.cos(a) - dy * math.sin(a), PIVOT[1] + dx * math.sin(a) + dy * math.cos(a))
-
-
-def _glass_line(yaw):
-    """The glass's front plane in plan: y at a given x."""
-    a = math.radians(yaw)
-    fx, fy = PIVOT[0] + case.SIDE_MAGNET_Z * math.sin(a), PIVOT[1] + case.SIDE_MAGNET_Z * math.cos(a)
-    return lambda x: fy - math.tan(a) * (x - fx)
-
-
-def _arms(yaw):
-    part = None
-    for deg in case.SIDE_MAGNET_DEG:
-        arm = _place(CrossSection([_arm_profile(deg)]).extrude(ARM_DEPTH).translate([0, 0, -ARM_DEPTH / 2]), yaw)
-        part = arm if part is None else part + arm
-    return part
-
-
-def _solve_yaw():
-    """Turn the gauge until the sled's front edge, which follows the glass out
-    to the far edge of the right arm, has come FRONT_STEP forward."""
-    def step(yaw):
-        x_end = _arms(yaw).bounding_box()[0]
-        return _glass_line(yaw)(x_end) - FRONT_STEP
-    lo, hi = 1.0, 40.0
-    for _ in range(40):
-        mid = (lo + hi) / 2
-        lo, hi = (mid, hi) if step(mid) < 0 else (lo, mid)
-    return (lo + hi) / 2
+# The case's own body, lying along y: how far the tipped case reaches down.
+LIFT = SLED_T + GAUGE_GAP - _pose(cyl(case.CUP_LEN + case.MAGNET_FLOOR, case.R_OUT,
+                                      -(case.CUP_LEN + case.MAGNET_FLOOR) / 2)).bounding_box()[2]
 
 
 def _upright(solid):
-    """Something built around the case's axis, stood up at the cradle and
-    turned toward the driver."""
-    return _place(solid, YAW)
+    """Something built around the case's axis, stood up at the cradle, turned
+    toward the driver and tipped up."""
+    return _pose(solid).translate([0, 0, LIFT])
+
+
+def _world_point(x, y, z):
+    """Where a point in the case's own (centered) frame ends up."""
+    bb = _upright(Manifold.cube([0.2, 0.2, 0.2], True).translate([x, y, z])).bounding_box()
+    return tuple((bb[i] + bb[i + 3]) / 2 for i in range(3))
+
+
+def _magnet_world(deg):
+    r, a = _disc_r(), math.radians(deg)
+    return _world_point(r * math.cos(a), r * math.sin(a), -case.SIDE_MAGNET_Z + (case.CUP_LEN + case.MAGNET_FLOOR) / 2)
 
 
 def _bore(radius):
-    """The space the case occupies, as a cylinder lying along y."""
-    return _upright(cyl(200, radius, -100))
+    """The space the case occupies, as a cylinder lying along its axis. Only as
+    long as the case: the tipped axis runs down toward the front, and a longer
+    tube would cut into the sled out there."""
+    length = case.CUP_LEN + case.MAGNET_FLOOR
+    return _upright(cyl(length, radius, -length / 2))
 
 
 def _ccw(points):
@@ -190,8 +228,8 @@ def _ccw(points):
 
 
 def _arm_profile(deg):
-    """Outline of one arm in the plane of the screen, as (x, height) pairs
-    measured from the case's center."""
+    """Outline of one arm's pad in the plane of the screen, as (x, height)
+    pairs measured from the case's center."""
     a = math.radians(deg)
     face = case.SIDE_PAD_R + ARM_FIT                  # flat, against the shell's flat pad
     n = (math.cos(a), math.sin(a))                    # outward, toward the pad
@@ -202,17 +240,25 @@ def _arm_profile(deg):
 
     inner_top = at(face, ARM_UP)
     inner_bot = at(face, -ARM_DOWN)
-    outer_x = at(face + ARM_T_TOP, ARM_UP)[0]         # the vertical outer wall
-    sled = SLED_T - CENTER_Z                          # the sled's top face
+    outer_x = at(face + ARM_T_TOP, ARM_UP)[0]         # the outer wall
     # Level across the top, so the arm finishes flat instead of in a peak.
-    return _ccw([inner_top, (outer_x, inner_top[1]), (outer_x, sled), (inner_bot[0], sled), inner_bot])
+    return _ccw([inner_top, (outer_x, inner_top[1]), (outer_x, inner_bot[1]), inner_bot])
 
 
-YAW = _solve_yaw()      # degrees the face is turned toward the driver
+def _arms():
+    """Both arms: each pad, and the column straight down from it to the sled.
+    The pad's inner face looks up and inward at the case, so everything swept
+    down from it is on the far side of the face and clear of the case."""
+    part = None
+    for deg in case.SIDE_MAGNET_DEG:
+        pad = _upright(CrossSection([_arm_profile(deg)]).extrude(ARM_DEPTH).translate([0, 0, -ARM_DEPTH / 2]))
+        column = Manifold.batch_hull([pad, pad.translate([0, 0, -200])]) ^ box(-500, 500, -500, 500, SLED_T - 0.01, 500)
+        part = column if part is None else part + column
+    return part
 
 
 def cradle():
-    part = _arms(YAW)
+    part = _arms()
     part -= _bore(case.R_OUT + ARM_FIT)               # keep the pads off the case
 
     # Pockets facing the shell's magnets. The disc goes in from the pad face,
@@ -271,14 +317,15 @@ def main():
         print(f"wrote {name}  {bb[3]-bb[0]:.0f} x {bb[4]-bb[1]:.0f} x {bb[5]-bb[2]:.1f} mm, "
               f"{solid.volume()/1000:.0f} cm3, {len(solid.decompose())} piece(s)"
               f"{'' if not air else f', {len(air)} FLOATING region(s)'}")
-    print(f"gauge center {CENTER_Z:.0f} mm above the sled's underside, "
-          f"bottom edge {SLED_T + GAUGE_GAP:.0f} mm up; flat pads, {ARM_T_TOP:.0f} mm across the top")
-    print(f"front rail {front_rail():.1f} mm wide; the arms end {front_rail() + GAUGE_Y - ARM_DEPTH / 2:.1f} mm "
-          f"short of its back edge")
-    print(f"gauge offset {GAUGE_X:+.1f} mm from the sled's centerline, turned {YAW:.1f} deg toward the driver")
-    ml, mr = (_yawed_magnet(d) for d in case.SIDE_MAGNET_DEG)
-    print(f"magnets: left stays, right is {ml[1] - mr[1]:+.1f} mm forward; front edge steps forward "
-          f"{FRONT_STEP:.1f} mm over x = {front_wedge(0).bounds()[0]:+.1f}..{front_wedge(0).bounds()[2]:+.1f}")
+    chain = _front_edge()
+    ml, mr = (_magnet_world(d) for d in case.SIDE_MAGNET_DEG)
+    left, right = (ml, mr) if ml[0] > mr[0] else (mr, ml)
+    print(f"gauge turned {YAW:.0f} deg toward the driver and tipped up {PITCH:.0f} deg, "
+          f"lifted {LIFT:.1f} mm to clear the sled")
+    print(f"right magnet is {right[1] - left[1]:+.1f} mm forward and {right[2] - left[2]:+.1f} mm up from the left one")
+    y_left = sled().bounding_box()
+    print(f"front edge reaches {chain[-1][1]:.1f} mm past the well's mouth on the right; "
+          f"the sled is {y_left[4] - y_left[1]:.0f} mm long")
     if not fits:
         raise SystemExit("clearance check failed")
 

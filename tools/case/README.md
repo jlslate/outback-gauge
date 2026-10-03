@@ -41,22 +41,28 @@ number at the top of `case.py` and a reprint of the one part.
 wall into the arcs. Both parts have to be regenerated together — a bayonet
 shell will not take a screw cover.
 
-In the sled, the gauge stands with its bottom edge 5 mm above the sled
-(2 mm above its top face) and its screen center 32 mm above the sled's underside. The USB-C port points **left** as you look at the screen (`USB_DEG` in
+In the sled, the gauge's lowest edge, once it is tipped, is 5 mm above the sled's
+underside (2 mm above its top face). The USB-C port points **left** as you look at the screen (`USB_DEG` in
 `case.py`, whose frame is mirrored, so 0 there prints on the left), out of the
 side of the case well clear of the arms, and the cable runs back to the dash
 port. It is turned a quarter (clockwise) from the board's natural bottom-edge position
 because the screen is polarized: with the port down, the picture goes black
 through polarized sunglasses.
 
-The gauge is also turned toward the driver, on the viewer's left. The left arm
-cannot go any further back, so the right one comes forward and the face is
-yawed about the left magnet by whatever angle puts the sled's front edge
-`FRONT_STEP` (10 mm) forward on the right. `sled.py` solves that angle (10.7°
-at 10 mm) and prints it. The front edge runs straight across the left, follows
-the glass's plane up to the right arm, then runs straight again to the right
-side, so it is no longer parallel to the back. The right end therefore
-overhangs the well's mouth by 10 mm.
+The gauge is also turned toward the driver, on the viewer's left, and tipped
+up toward their eyes: `YAW` (30°) about the vertical, then `PITCH` (20°) of
+tilt, both at the top of `sled.py`. The left arm's magnet cannot go any further
+back, so the turn is about it and the right arm comes forward, 21.6 mm for the
+30° turn. Each arm stands on a column straight down to the sled, so nothing
+overhangs. The sled's front edge is cut as short as it can be while still
+clearing the arms: one angled edge from the sled's left side, along the arms'
+outline up to the right arm's front corner (25 mm past the well's mouth), then
+flat across to the right side with no step back. On the left the angle carries
+on to the side, so the sled ends about 7 mm short of the mouth there, with no square corner.
+The gauge sits 3 mm closer to the middle
+than when it stood square, so the turned left arm stays on the sled.
+The front-right window in the sled frame runs on forward, up to a 2 mm margin behind
+the right arm, since that arm stands so far ahead of the left one.
 
 ![The sled from above](../../docs/sled-plan.png)
 
@@ -218,7 +224,7 @@ Everything is set by the constants at the top of `case.py`:
 - How far the pads stand out, and so how far the arms sit back:
   `SIDE_PAD_H`. Raising it needs a matching reprint of the sled
 - Gauge height, arm size and the tray well: the constants at the top of `sled.py`
-- How far the right side of the sled (and the gauge's turn) comes forward: `FRONT_STEP`
+- How far the gauge is turned and tipped, which sets how far forward the sled's right side comes: `YAW` and `PITCH`
 
 Regenerate after a change. The script checks the case against an outline of
 the board and the USB-C plug path, and fails if anything collides.
