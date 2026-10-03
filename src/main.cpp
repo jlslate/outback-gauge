@@ -13,6 +13,7 @@ namespace {
 void handleTouch() {
   switch (touch_update()) {
     case TouchEvent::Tap: ui_nextPage(); break;
+    case TouchEvent::DoubleTap: ui_doubleTap(); break;
     case TouchEvent::LongPress: ui_longPress(); break;
     case TouchEvent::None: break;
   }

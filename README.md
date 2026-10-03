@@ -18,7 +18,8 @@ adapter.
 ## Pages
 
 The gauges cycle on their own every 3 seconds (adjustable, or off, on the
-settings page). **Tap** to go to the next one early. The dots along the bottom show where you are, and the current page is
+settings page). **Tap** to go to the next one early; **double tap** to turn auto-rotate on or off
+(the status line says which, and the page stays where it was). The dots along the bottom show where you are, and the current page is
 remembered across reboots. The BOOT button does the same from the bench — a
 short press moves to the next page, holding it acts like a long press — but
 it has no hole in the case: it sits under one of the magnet pads. Everything

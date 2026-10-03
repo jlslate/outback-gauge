@@ -4,7 +4,7 @@
 #include <string>
 
 const char *name(TouchEvent e) {
-  switch (e) { case TouchEvent::Tap: return "Tap"; case TouchEvent::LongPress: return "LongPress";
+  switch (e) { case TouchEvent::Tap: return "Tap"; case TouchEvent::LongPress: return "LongPress"; case TouchEvent::DoubleTap: return "DoubleTap";
     default: return "None"; }
 }
 struct Sample { bool report, down; int x, y; };
@@ -34,7 +34,9 @@ int main() {
     {"hold 800ms (too long for tap, too short for long)", hold(40, 200, 200) + lift(200, 200), "None"},
     {"drag then hold still (no long press)", drag(100, 200, 300, 200, 10) + hold(60, 300, 200), "None"},
     {"intermittent reports while held", sparse(6, 200, 200, 3) + lift(200, 200), "Tap"},
-    {"two taps", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,Tap"},
+    {"two taps far apart", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(25, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,Tap"},
+    {"double tap", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,DoubleTap"},
+    {"triple tap", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,DoubleTap,Tap"},
   };
   int fails = 0;
   for (auto &c : cases) { std::string got = run(c.s); bool ok = got == c.expect; fails += !ok;

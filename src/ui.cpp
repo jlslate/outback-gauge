@@ -61,8 +61,11 @@ Gauge gauges[PAGE_COUNT];
 SettingsPage settingsPage;
 uint8_t page = PAGE_BOOST;
 uint32_t shownAt = 0;  // when the current page came up, for auto-rotate
+uint8_t cameFrom = PAGE_BOOST;    // the page before the last tap, for undoing it on a double tap
 uint8_t returnPage = PAGE_BOOST;  // where the settings page goes back to
 float peakBoost = NAN;
+uint32_t toastUntil = 0;
+const char *toastText = "";
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -203,7 +206,7 @@ void setGauge(Gauge &g, bool isFresh, float v, bool warn, const char *status) {
     setText(g.value, "--");
   }
   setColor(g.value, isFresh && warn ? RED : WHITE);
-  setText(g.status, status);
+  setText(g.status, millis() < toastUntil ? toastText : status);
 }
 
 // ---- settings page ---------------------------------------------------------
@@ -329,7 +332,20 @@ void ui_applySettings() {
 
 void ui_nextPage() {
   if (page == PAGE_SETTINGS) return;
+  cameFrom = page;
   showPage((page + 1) % PAGE_COUNT);
+}
+
+// Two quick taps: the first already moved on a page, so go back to where it
+// started, then flip auto-rotate and say so on the status line for a moment.
+void ui_doubleTap() {
+  if (page == PAGE_SETTINGS) return;
+  showPage(cameFrom);
+  Settings s = settings();
+  s.autoRotate = !s.autoRotate;
+  settings_stage(s);
+  toastText = s.autoRotate ? "Auto-rotate on" : "Auto-rotate off";
+  toastUntil = millis() + 1500;
 }
 
 // Hold on any gauge opens the Wi-Fi page and starts the access point; hold on
