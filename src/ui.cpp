@@ -17,6 +17,8 @@ namespace {
 
 constexpr lv_coord_t C = LCD_SIZE / 2;  // screen center
 constexpr uint32_t WHITE = 0xFFFFFF, GREY = 0x9E9E9E, RED = 0xE53935, AMBER = 0xFB8C00, BLUE = 0x1E88E5;
+constexpr uint32_t TEXT_GREEN = 0x4CAF50, TEXT_ORANGE = 0xFF9800, TEXT_BLUE = 0x42A5F5, TEXT_PINK = 0xFF4FA3,
+                   TEXT_YELLOW = 0xFFEB3B, TEXT_PURPLE = 0xBA68C8;
 #define DEG "\xC2\xB0"
 
 // A coloured arc on the scale. One endpoint can be driven by a setting, so the
@@ -34,14 +36,15 @@ struct GaugeCfg {
   int ticks, majorEvery;  // tick count across the whole scale, label every Nth tick
   Band bands[2];
   Focus focus;
+  uint32_t color;  // the readout's colour; red is kept for a warning
 };
 
-const GaugeCfg BOOST = {"BOOST", "psi", "%.1f", -15, 20, 1, 36, 5, {{0, 20, RED, &Settings::boostWarnPsi}, {}}, Focus::Boost};
-const GaugeCfg LOAD = {"ENGINE LOAD", "%", "%.0f", 0, 100, 1, 11, 2, {{}, {}}, Focus::Load};
-const GaugeCfg COOLANT = {"COOLANT", DEG "F", "%.0f", 100, 260, 1, 17, 2, {{100, 140, BLUE}, {0, 260, RED, &Settings::coolantWarnF}}, Focus::Coolant};
-const GaugeCfg OIL = {"OIL TEMP", DEG "F", "%.0f", 100, 300, 1, 21, 5, {{100, 140, BLUE}, {0, 300, RED, &Settings::oilWarnF}}, Focus::Oil};
-const GaugeCfg INTAKE = {"INTAKE AIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 200, RED, &Settings::intakeWarnF}, {}}, Focus::Intake};
-const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts};
+const GaugeCfg BOOST = {"BOOST", "psi", "%.1f", -15, 20, 1, 36, 5, {{0, 20, RED, &Settings::boostWarnPsi}, {}}, Focus::Boost, TEXT_ORANGE};
+const GaugeCfg LOAD = {"ENGINE\nLOAD", "%", "%.0f", 0, 100, 1, 11, 2, {{}, {}}, Focus::Load, TEXT_PURPLE};
+const GaugeCfg COOLANT = {"COOLANT", DEG "F", "%.0f", 100, 260, 1, 17, 2, {{100, 140, BLUE}, {0, 260, RED, &Settings::coolantWarnF}}, Focus::Coolant, TEXT_BLUE};
+const GaugeCfg OIL = {"OIL\nTEMP", DEG "F", "%.0f", 100, 300, 1, 21, 5, {{100, 140, BLUE}, {0, 300, RED, &Settings::oilWarnF}}, Focus::Oil, TEXT_PINK};
+const GaugeCfg INTAKE = {"INTAKE\nAIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 200, RED, &Settings::intakeWarnF}, {}}, Focus::Intake, TEXT_YELLOW};
+const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts, TEXT_GREEN};
 
 struct Gauge {
   const GaugeCfg *cfg = nullptr;
@@ -157,7 +160,9 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   g.screen = newScreen();
 
   // Created before the meter so the needle sweeps over it.
-  lv_label_set_text(label(g.screen, &lv_font_montserrat_24, GREY, 0, -72), cfg.title);
+  lv_obj_t *title = label(g.screen, &lv_font_montserrat_32, cfg.color, 0, -72);
+  lv_obj_set_style_text_line_space(title, -4, 0);
+  lv_label_set_text(title, cfg.title);
 
   g.meter = lv_meter_create(g.screen);
   lv_obj_set_size(g.meter, LCD_SIZE - 12, LCD_SIZE - 12);
@@ -205,7 +210,7 @@ void setGauge(Gauge &g, bool isFresh, float v, bool warn, const char *status) {
   } else {
     setText(g.value, "--");
   }
-  setColor(g.value, isFresh && warn ? RED : WHITE);
+  setColor(g.value, isFresh && warn ? RED : g.cfg->color);
   setText(g.status, millis() < toastUntil ? toastText : status);
 }
 

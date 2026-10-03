@@ -12,7 +12,7 @@ class GestureDetector {
   static constexpr int TAP_SLOP = 30;          // px a tap or long press may wander
   static constexpr uint32_t TAP_MAX_MS = 700;
   static constexpr uint32_t LONG_MS = 900;
-  static constexpr uint32_t DOUBLE_MS = 350;    // second tap this soon after the first is a double tap
+  static constexpr uint32_t DOUBLE_MS = 500;    // second tap this soon after the first is a double tap
   static constexpr uint32_t LIFT_GAP_MS = 150;  // no reports for this long counts as lifted
 
   // report: a point report was read this poll; down: finger on the glass
