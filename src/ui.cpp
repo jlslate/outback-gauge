@@ -160,7 +160,7 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   g.screen = newScreen();
 
   // Created before the meter so the needle sweeps over it.
-  lv_obj_t *title = label(g.screen, &lv_font_montserrat_32, cfg.color, 0, -72);
+  lv_obj_t *title = label(g.screen, &lv_font_montserrat_36, cfg.color, 0, -72);
   lv_obj_set_style_text_line_space(title, -4, 0);
   lv_label_set_text(title, cfg.title);
 
