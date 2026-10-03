@@ -69,6 +69,7 @@ uint8_t returnPage = PAGE_BOOST;  // where the settings page goes back to
 float peakBoost = NAN;
 uint32_t toastUntil = 0;
 const char *toastText = "";
+uint32_t toastColor = GREY;
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -211,7 +212,9 @@ void setGauge(Gauge &g, bool isFresh, float v, bool warn, const char *status) {
     setText(g.value, "--");
   }
   setColor(g.value, isFresh && warn ? RED : g.cfg->color);
-  setText(g.status, millis() < toastUntil ? toastText : status);
+  const bool toast = millis() < toastUntil;
+  setText(g.status, toast ? toastText : status);
+  setColor(g.status, toast ? toastColor : GREY);
 }
 
 // ---- settings page ---------------------------------------------------------
@@ -389,7 +392,8 @@ void ui_doubleTap() {
   s.autoRotate = !s.autoRotate;
   settings_stage(s);
   toastText = s.autoRotate ? "Auto-rotate on" : "Auto-rotate off";
-  toastUntil = millis() + 1500;
+  toastColor = s.autoRotate ? TEXT_GREEN : RED;
+  toastUntil = millis() + 3000;
 }
 
 // Hold on any gauge opens the Wi-Fi page and starts the access point; hold on
