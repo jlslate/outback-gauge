@@ -7,4 +7,5 @@ void ui_update(const Telemetry &t);
 void ui_applySettings();  // thresholds changed: move the warning bands
 void ui_nextPage();   // tap or BOOT short press
 void ui_doubleTap();  // undo the first tap's page change and flip auto-rotate
+void ui_brightness(int dir);  // swipe up / down: next brighter / dimmer backlight step
 void ui_longPress();  // hold: open the Wi-Fi page and start it; hold there to stop and go back

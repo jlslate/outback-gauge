@@ -4,7 +4,7 @@
 #include <string>
 
 const char *name(TouchEvent e) {
-  switch (e) { case TouchEvent::Tap: return "Tap"; case TouchEvent::LongPress: return "LongPress"; case TouchEvent::DoubleTap: return "DoubleTap";
+  switch (e) { case TouchEvent::Tap: return "Tap"; case TouchEvent::LongPress: return "LongPress"; case TouchEvent::DoubleTap: return "DoubleTap"; case TouchEvent::SwipeUp: return "SwipeUp"; case TouchEvent::SwipeDown: return "SwipeDown";
     default: return "None"; }
 }
 struct Sample { bool report, down; int x, y; };
@@ -30,7 +30,10 @@ int main() {
     {"long press", hold(60, 200, 200) + lift(200, 200), "LongPress"},
     {"long press then gap", hold(60, 200, 200), "LongPress"},
     {"swipe is not a tap", drag(320, 200, 100, 210, 10) + lift(100, 210), "None"},
-    {"vertical drag", drag(200, 80, 220, 330, 10), "None"},
+    {"swipe down", drag(200, 80, 210, 330, 10), "SwipeDown"},
+    {"swipe up", drag(200, 330, 190, 80, 10), "SwipeUp"},
+    {"short vertical drag is not a swipe", drag(200, 200, 205, 240, 5), "None"},
+    {"diagonal drag", drag(100, 100, 300, 250, 10), "None"},
     {"hold 800ms (too long for tap, too short for long)", hold(40, 200, 200) + lift(200, 200), "None"},
     {"drag then hold still (no long press)", drag(100, 200, 300, 200, 10) + hold(60, 300, 200), "None"},
     {"intermittent reports while held", sparse(6, 200, 200, 3) + lift(200, 200), "Tap"},

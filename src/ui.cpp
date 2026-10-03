@@ -396,6 +396,28 @@ void ui_doubleTap() {
   toastUntil = millis() + 3000;
 }
 
+// Swipe up for brighter, down for dimmer, one preset at a time. It goes through
+// the same staging as the web page, so the level is saved and the page shows it.
+void ui_brightness(int dir) {
+  if (page == PAGE_SETTINGS) return;
+  static const uint8_t steps[] = {5, 20, 40, 60, 80, 100};
+  Settings s = settings();
+  int pick = -1;
+  for (int i = 0; i < (int)(sizeof steps); i++) {
+    if (dir > 0 && steps[i] > s.backlight) { pick = i; break; }
+    if (dir < 0 && steps[i] < s.backlight) pick = i;
+  }
+  if (pick >= 0) {
+    s.backlight = steps[pick];
+    settings_stage(s);
+  }
+  static char text[24];
+  snprintf(text, sizeof text, "Brightness %u%%", pick >= 0 ? s.backlight : settings().backlight);
+  toastText = text;
+  toastColor = WHITE;
+  toastUntil = millis() + 3000;
+}
+
 // Hold on any gauge opens the Wi-Fi page and starts the access point; hold on
 // the Wi-Fi page stops it and goes back.
 void ui_longPress() {
