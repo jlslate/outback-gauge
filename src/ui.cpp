@@ -289,11 +289,50 @@ void ui_init() {
   showPage(saved < PAGE_COUNT ? saved : PAGE_BOOST);
 }
 
+// Whether a gauge's reading is fresh and past its warning threshold.
+static bool warning(uint8_t p, const Telemetry &t, const Settings &s) {
+  switch (p) {
+    case PAGE_BOOST: return fresh(t.boostAt) && t.boostPsi >= s.boostWarnPsi;
+    case PAGE_COOLANT: return fresh(t.coolantAt) && t.coolantF >= s.coolantWarnF;
+    case PAGE_OIL: return fresh(t.oilAt) && t.oilF >= s.oilWarnF;
+    case PAGE_INTAKE: return fresh(t.intakeAt) && t.intakeF >= s.intakeWarnF;
+    case PAGE_VOLTS: return fresh(t.voltsAt) && (t.volts < s.voltsLowWarn || t.volts > s.voltsHighWarn);
+  }
+  return false;  // engine load has no warning
+}
+
+// A gauge that goes into warning comes up on screen, and while any is in
+// warning the auto-rotate waits. A warning counts as over only once it has
+// stayed clear for ALARM_CLEAR_MS, so a reading hovering at its threshold
+// doesn't keep pulling the screen back. Returns whether any warning is live.
+static constexpr uint32_t ALARM_CLEAR_MS = 3000;
+static bool warned[PAGE_COUNT];
+static uint32_t clearSince[PAGE_COUNT];
+
+static bool checkAlarms(const Telemetry &t, const Settings &s) {
+  bool any = false;
+  for (uint8_t i = 0; i < PAGE_COUNT; i++) {
+    if (warning(i, t, s)) {
+      clearSince[i] = 0;
+      if (!warned[i]) {
+        warned[i] = true;
+        if (page != PAGE_SETTINGS && page != i) showPage(i);
+      }
+    } else if (warned[i]) {
+      if (!clearSince[i]) clearSince[i] = millis();
+      else if (millis() - clearSince[i] >= ALARM_CLEAR_MS) warned[i] = false;
+    }
+    any |= warned[i];
+  }
+  return any;
+}
+
 void ui_update(const Telemetry &t) {
   const Settings &s = settings();
   // Wi-Fi went off by itself (web page button or idle timeout): back to the gauges.
   if (page == PAGE_SETTINGS && !webconfig_active()) showPage(returnPage);
-  if (s.autoRotate && page != PAGE_SETTINGS && millis() - shownAt >= (uint32_t)(s.autoRotateSecs * 1000)) ui_nextPage();
+  const bool alarmed = checkAlarms(t, s);
+  if (s.autoRotate && !alarmed && page != PAGE_SETTINGS && millis() - shownAt >= (uint32_t)(s.autoRotateSecs * 1000)) ui_nextPage();
   const bool live = t.state == ObdState::Live || t.state == ObdState::Simulated;
   if (live && fresh(t.boostAt) && !(t.boostPsi <= peakBoost)) peakBoost = t.boostPsi;
 
@@ -307,23 +346,23 @@ void ui_update(const Telemetry &t) {
         snprintf(peak, sizeof peak, t.state == ObdState::Simulated ? "PEAK %.1f  (SIM)" : "PEAK %.1f", peakBoost);
         status = peak;
       }
-      setGauge(gauges[PAGE_BOOST], fresh(t.boostAt), t.boostPsi, t.boostPsi >= s.boostWarnPsi, status);
+      setGauge(gauges[PAGE_BOOST], fresh(t.boostAt), t.boostPsi, warning(PAGE_BOOST, t, s), status);
       break;
     }
     case PAGE_LOAD:
       setGauge(gauges[PAGE_LOAD], fresh(t.loadAt), t.loadPct, false, status);
       break;
     case PAGE_COOLANT:
-      setGauge(gauges[PAGE_COOLANT], fresh(t.coolantAt), t.coolantF, t.coolantF >= s.coolantWarnF, status);
+      setGauge(gauges[PAGE_COOLANT], fresh(t.coolantAt), t.coolantF, warning(PAGE_COOLANT, t, s), status);
       break;
     case PAGE_OIL:
-      setGauge(gauges[PAGE_OIL], fresh(t.oilAt), t.oilF, t.oilF >= s.oilWarnF, status);
+      setGauge(gauges[PAGE_OIL], fresh(t.oilAt), t.oilF, warning(PAGE_OIL, t, s), status);
       break;
     case PAGE_INTAKE:
-      setGauge(gauges[PAGE_INTAKE], fresh(t.intakeAt), t.intakeF, t.intakeF >= s.intakeWarnF, status);
+      setGauge(gauges[PAGE_INTAKE], fresh(t.intakeAt), t.intakeF, warning(PAGE_INTAKE, t, s), status);
       break;
     case PAGE_VOLTS:
-      setGauge(gauges[PAGE_VOLTS], fresh(t.voltsAt), t.volts, t.volts < s.voltsLowWarn || t.volts > s.voltsHighWarn, status);
+      setGauge(gauges[PAGE_VOLTS], fresh(t.voltsAt), t.volts, warning(PAGE_VOLTS, t, s), status);
       break;
     case PAGE_SETTINGS:
       updateSettings();
