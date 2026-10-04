@@ -56,13 +56,12 @@ back, so the turn is about it and the right arm comes forward, 21.6 mm for the
 30° turn. Each arm stands on a column straight down to the sled, so nothing
 overhangs. The sled's front edge is cut as short as it can be while still
 clearing the arms: one angled edge from the sled's left side, along the arms'
-outline up to the right arm's front corner (25 mm past the well's mouth), then
+outline up to the right arm's front corner (28 mm past the well's mouth, with the arms standing 0.5 mm back from the edge), then
 flat across to the right side with no step back. On the left the angle carries
-on to the side, so the sled ends about 7 mm short of the mouth there, with no square corner.
+on to the side, so the sled ends about 2 mm short of the mouth there, with no square corner.
 The gauge sits 3 mm closer to the middle
 than when it stood square, so the turned left arm stays on the sled.
-The front-right window in the sled frame runs on forward, up to a 2 mm margin behind
-the right arm, since that arm stands so far ahead of the left one.
+The two front windows in the sled frame are the same size, so the rail under the right arm is wider than it needs to be.
 
 ![The sled from above](../../docs/sled-plan.png)
 

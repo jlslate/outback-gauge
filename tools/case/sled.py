@@ -47,7 +47,11 @@ CLEAR = 1.5           # gap to the well walls, so it drops in without forcing
 SLED_LEN = 149.0      # runs the depth of the well and a little past the mouth
 SLED_T = 3.0
 SLED_RAIL = 11.0      # width of the frame rails
-FRONT_MARGIN = 2.0    # solid front rail, this far past the back of the arms
+FRONT_MARGIN = 0.5    # solid sled ahead of the arms: they stand almost at the front edge
+REAR_MARGIN = 2.0     # solid rail behind the arms, before the sled's windows start
+FRONT_EXTEND = 3.0    # how far the sled's front edge comes forward from where it was
+                      # (when it stood 2 mm ahead of the arms)
+ARM_SHIFT = FRONT_EXTEND + 2.0 - FRONT_MARGIN   # so the arms move forward by this much
 
 # ---- the cradle --------------------------------------------------------------
 GAUGE_GAP = 2.0       # bottom of the case above the sled's top face; it was 6
@@ -57,7 +61,7 @@ YAW = 30.0            # degrees the face is turned toward the driver, about the 
 PITCH = 20.0          # degrees the face is then tipped up
 # Case mid-depth, back from the sled's front edge: half the case's depth, so
 # the glass ends up flush with the front of the sled.
-GAUGE_Y = -(case.CUP_LEN + case.MAGNET_FLOOR) / 2
+GAUGE_Y = -(case.CUP_LEN + case.MAGNET_FLOOR) / 2 + ARM_SHIFT
 ARM_FIT = 0.3         # gap between the arm's face and the case
 ARM_DEPTH = 13.0      # how much of the case's 18.4 mm depth the arms hold
 # Each arm is a flat pad, meeting the shell's own flat magnet pad, carried on
@@ -79,14 +83,7 @@ NOMINAL_Z = SLED_T + GAUGE_GAP + case.R_OUT    # case center above the sled's un
 
 def front_rail():
     """Wide enough that both arms sit entirely on the sled's front rail."""
-    return -_arms().bounding_box()[1] + FRONT_MARGIN
-
-
-def _right_arm_rear():
-    """How far back the right arm's footprint reaches (its lowest y)."""
-    polys = _arms().project().to_polygons()
-    right = min(polys, key=lambda p: p[:, 0].mean())
-    return float(right[:, 1].min())
+    return -_arms().bounding_box()[1] + REAR_MARGIN
 
 
 def _trapezoid(half_front, half_rear, length):
@@ -161,12 +158,6 @@ def sled():
     at = lambda y: half_f - taper * y                      # half width, y back from the mouth
     inner = _trapezoid(at(front) - rail, at(SLED_LEN - rail) - rail,
                        SLED_LEN - rail - front).translate([0, -front])
-    # The right arm stands well forward of the left, so the right-hand front
-    # window can run on up to it instead of stopping where the left arm's rail ends.
-    y_right = _right_arm_rear() - FRONT_MARGIN
-    if y_right > -front:
-        inner += CrossSection([[(-rib / 2, y_right), (-(half_f - rail), y_right), (-(half_f - rail), 0),
-                                (-(at(front) - rail), -front), (-rib / 2, -front)]])
     windows = inner.extrude(SLED_T + 2).translate([0, 0, -1])
     windows -= box(-rib / 2, rib / 2, -SLED_LEN, 0, -1, SLED_T + 1)      # center rib
     windows -= box(-half_f, half_f, -SLED_LEN / 2 - rib / 2, -SLED_LEN / 2 + rib / 2, -1, SLED_T + 1)
@@ -183,7 +174,7 @@ def _disc_r():
 # yawed and tipped about that point, then lifted until the tipped case's
 # lowest edge is GAUGE_GAP clear of the sled.
 _LEFT = max(case.SIDE_MAGNET_DEG, key=lambda d: math.cos(math.radians(d)))
-PIVOT = (GAUGE_X + _disc_r() * math.cos(math.radians(_LEFT)), -case.SIDE_MAGNET_Z,
+PIVOT = (GAUGE_X + _disc_r() * math.cos(math.radians(_LEFT)), -case.SIDE_MAGNET_Z + ARM_SHIFT,
          NOMINAL_Z + _disc_r() * math.sin(math.radians(_LEFT)))
 
 
