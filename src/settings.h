@@ -33,5 +33,6 @@ Settings settings_defaults();
 const Settings &settings();  // current values; safe to read every frame
 
 void settings_load();               // call once, before anything reads settings()
+Settings settings_clean(const Settings &s);  // a copy with every value clamped, as settings_stage would keep it
 void settings_stage(const Settings &s);  // from the web task; clamped here
 bool settings_apply();              // UI task: adopts and persists staged values

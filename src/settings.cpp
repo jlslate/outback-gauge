@@ -42,6 +42,10 @@ void sanitize(Settings &s) {
   s.pageMask &= (1u << GAUGE_PAGES) - 1;
   if (!s.pageMask) s.pageMask = 1;                       // something has to be showing
   if (s.startPage != START_LAST && s.startPage >= GAUGE_PAGES) s.startPage = 0;
+  if (s.startPage != START_LAST && !(s.pageMask >> s.startPage & 1)) {      // can't start on a hidden gauge
+    s.startPage = 0;
+    while (!(s.pageMask >> s.startPage & 1)) s.startPage++;
+  }
   // A low warning above the high one would paint the whole scale; keep them apart.
   if (s.voltsLowWarn > s.voltsHighWarn - 0.5f) s.voltsLowWarn = s.voltsHighWarn - 0.5f;
 }
@@ -85,6 +89,12 @@ void settings_load() {
     Serial.printf("[CFG] saved settings are layout %u, wanted %u; using defaults\n",
                   n == sizeof st ? st.layout : 0, LAYOUT);
   }
+}
+
+Settings settings_clean(const Settings &s) {
+  Settings copy = s;
+  sanitize(copy);
+  return copy;
 }
 
 void settings_stage(const Settings &s) {

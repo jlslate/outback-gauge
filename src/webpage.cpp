@@ -46,7 +46,7 @@ const char *const PAGE_NAMES[GAUGE_PAGES] = {"Boost", "Engine load", "Coolant", 
 
 String render(const Settings &s, const char *note) {
   String o;
-  o.reserve(6000);
+  o.reserve(9500);
   o += F("<!doctype html><html><head><meta charset=utf-8>"
          "<meta name=viewport content='width=device-width,initial-scale=1'>"
          "<title>Outback Gauge</title><style>"
@@ -76,6 +76,11 @@ String render(const Settings &s, const char *note) {
          ".lim em{min-width:1.6rem;text-align:left;white-space:nowrap}"
          "td input[type=number]{width:4.2rem}"
          ".none{color:#555}"
+         "td input:disabled{opacity:.25}"
+         "#toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);padding:.7rem 1.3rem;"
+         "border-radius:8px;background:#14301b;border:1px solid #2c5c38;color:#a9e0bb;display:none;z-index:9;"
+         "box-shadow:0 4px 18px #000a}"
+         "#toast.bad{background:#3a1616;border-color:#7a2c2c;color:#f2b2b2}"
          "input[type=checkbox]{width:1.35rem;height:1.35rem;accent-color:#FF6D00}"
          "button{width:100%;padding:.85rem;margin-top:1.2rem;border:0;border-radius:8px;"
          "background:#FF6D00;color:#111;font-size:1rem;font-weight:600}"
@@ -92,10 +97,10 @@ String render(const Settings &s, const char *note) {
     o += F("</div>");
   }
 
-  o += F("<form method=POST action=/save><h2>Gauges</h2><table>"
+  o += F("<form method=POST action=/save data-toast=\"Saved\"><h2>Gauges</h2><table>"
          "<tr><th>Gauge<th>Warns at<th>Show<th>Start on</tr>");
   for (int i = 0; i < GAUGE_PAGES; i++) {
-    o += "<tr><td>";
+    o += "<tr data-g><td>";
     o += PAGE_NAMES[i];
     o += "<td>";
     switch (i) {
@@ -137,10 +142,31 @@ String render(const Settings &s, const char *note) {
   o += F("%</em></label>");
 
   o += F("<button>Save</button></form>"
-         "<form method=POST action=/defaults><button class=ghost>Restore defaults</button></form>"
-         "<form method=POST action=/reboot><button class=ghost>Reboot the gauge</button></form>"
-         "<form method=POST action=/stop><button class=ghost>Turn Wi-Fi off</button></form>"
-         "</main></body></html>");
+         "<form method=POST action=/defaults data-toast=\"Defaults restored\" data-confirm=\"Put every setting back to its default?\">"
+         "<button class=ghost>Restore defaults</button></form>"
+         "<form method=POST action=/reboot data-confirm=\"Reboot the gauge? The Wi-Fi drops, so hold the screen to bring it back.\">"
+         "<button class=ghost>Reboot the gauge</button></form>"
+         "<form method=POST action=/stop data-confirm=\"Turn Wi-Fi off? Hold the screen to bring it back.\">"
+         "<button class=ghost>Turn Wi-Fi off</button></form>"
+         "</main><div id=toast></div><script>"
+         "function sync(){var rows=document.querySelectorAll('tr[data-g]'),on=0,pick=null;"
+         "rows.forEach(function(r){var c=r.querySelector('input[type=checkbox]'),d=r.querySelector('input[type=radio]');"
+         "d.disabled=!c.checked;if(c.checked){on++;if(!pick)pick=d}"
+         "if(d.disabled&&d.checked){d.checked=false;if(pick)pick.checked=true}});"
+         "var sel=document.querySelector('input[name=start]:checked');"
+         "if(!sel){(pick||document.querySelector('input[name=start]:not(:disabled)')).checked=true}}"
+         "function toast(t,bad){var e=document.getElementById('toast');e.textContent=t;e.className=bad?'bad':'';"
+         "e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.display='none'},3000)}"
+         "document.addEventListener('change',function(e){if(e.target.type=='checkbox'&&e.target.name&&e.target.name.indexOf('pg')==0){"
+         "if(!document.querySelector('input[name^=pg]:checked'))e.target.checked=true;sync()}});"
+         "document.addEventListener('submit',function(e){var f=e.target,c=f.getAttribute('data-confirm');"
+         "if(c&&!confirm(c)){e.preventDefault();return}"
+         "var t=f.getAttribute('data-toast');if(!t)return;e.preventDefault();"
+         "fetch(f.action,{method:'POST',body:new URLSearchParams(new FormData(f))}).then(function(r){return r.text()})"
+         ".then(function(h){var y=scrollY;document.body.innerHTML=new DOMParser().parseFromString(h,'text/html').body.innerHTML;"
+         "var n=document.querySelector('.note');if(n)n.remove();sync();scrollTo(0,y);toast(t)})"
+         ".catch(function(){toast('Could not reach the gauge',1)})});"
+         "sync();</script></body></html>");
   return o;
 }
 

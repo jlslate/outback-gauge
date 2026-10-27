@@ -60,6 +60,7 @@ void handleSave() {
     if (server.hasArg(name)) s.pageMask |= 1u << i;
   }
 
+  s = settings_clean(s);
   settings_stage(s);
   // Rendered from what was just staged, not from settings(): the UI task adopts
   // it a frame or two from now, and re-reading here would show the old values.
