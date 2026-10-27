@@ -52,6 +52,13 @@ void handleSave() {
   // Unchecked boxes aren't posted at all, so presence is the value.
   s.autoRotate = server.hasArg("auto");
   s.autoRotateSecs = argFloat("secs", s.autoRotateSecs);
+  s.startPage = (uint8_t)argFloat("start", s.startPage);
+  s.pageMask = 0;
+  for (int i = 0; i < GAUGE_PAGES; i++) {
+    char name[8];
+    snprintf(name, sizeof name, "pg%d", i);
+    if (server.hasArg(name)) s.pageMask |= 1u << i;
+  }
 
   settings_stage(s);
   // Rendered from what was just staged, not from settings(): the UI task adopts

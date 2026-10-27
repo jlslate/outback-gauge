@@ -14,6 +14,7 @@ void handleTouch() {
   switch (touch_update()) {
     case TouchEvent::Tap: ui_nextPage(); break;
     case TouchEvent::DoubleTap: ui_doubleTap(); break;
+    case TouchEvent::TapHold: ui_tapHold(); break;
     case TouchEvent::SwipeUp: ui_brightness(+1); break;
     case TouchEvent::SwipeDown: ui_brightness(-1); break;
     case TouchEvent::LongPress: ui_longPress(); break;

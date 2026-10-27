@@ -37,21 +37,22 @@ struct GaugeCfg {
   Band bands[2];
   Focus focus;
   uint32_t color;  // the readout's colour; red is kept for a warning
+  int8_t track;    // +1: a thin needle holds the highest reading; -1: the lowest; 0: none
 };
 
-const GaugeCfg BOOST = {"BOOST", "psi", "%.1f", -15, 20, 1, 36, 5, {{0, 20, RED, &Settings::boostWarnPsi}, {}}, Focus::Boost, TEXT_ORANGE};
-const GaugeCfg LOAD = {"ENGINE\nLOAD", "%", "%.0f", 0, 100, 1, 11, 2, {{}, {}}, Focus::Load, TEXT_PURPLE};
-const GaugeCfg COOLANT = {"COOLANT", DEG "F", "%.0f", 100, 260, 1, 17, 2, {{100, 140, BLUE}, {0, 260, RED, &Settings::coolantWarnF}}, Focus::Coolant, TEXT_BLUE};
-const GaugeCfg OIL = {"OIL\nTEMP", DEG "F", "%.0f", 100, 300, 1, 21, 5, {{100, 140, BLUE}, {0, 300, RED, &Settings::oilWarnF}}, Focus::Oil, TEXT_PINK};
-const GaugeCfg INTAKE = {"INTAKE\nAIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 200, RED, &Settings::intakeWarnF}, {}}, Focus::Intake, TEXT_YELLOW};
-const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts, TEXT_GREEN};
+const GaugeCfg BOOST = {"BOOST", "psi", "%.1f", -15, 20, 1, 36, 5, {{0, 20, RED, &Settings::boostWarnPsi}, {}}, Focus::Boost, TEXT_ORANGE, 1};
+const GaugeCfg LOAD = {"ENGINE\nLOAD", "%", "%.0f", 0, 100, 1, 11, 2, {{}, {}}, Focus::Load, TEXT_PURPLE, 0};
+const GaugeCfg COOLANT = {"COOLANT", DEG "F", "%.0f", 100, 260, 1, 17, 2, {{100, 140, BLUE}, {0, 260, RED, &Settings::coolantWarnF}}, Focus::Coolant, TEXT_BLUE, 0};
+const GaugeCfg OIL = {"OIL\nTEMP", DEG "F", "%.0f", 100, 300, 1, 21, 5, {{100, 140, BLUE}, {0, 300, RED, &Settings::oilWarnF}}, Focus::Oil, TEXT_PINK, 1};
+const GaugeCfg INTAKE = {"INTAKE\nAIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 200, RED, &Settings::intakeWarnF}, {}}, Focus::Intake, TEXT_YELLOW, 1};
+const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts, TEXT_GREEN, -1};
 
 struct Gauge {
   const GaugeCfg *cfg = nullptr;
   lv_obj_t *screen = nullptr, *meter = nullptr, *value = nullptr, *status = nullptr;
-  lv_meter_indicator_t *needle = nullptr;
+  lv_meter_indicator_t *needle = nullptr, *peakNeedle = nullptr;   // peakNeedle: the highest (or lowest) reading, where cfg->track asks for one
   lv_meter_indicator_t *arcs[2] = {nullptr, nullptr};
-  int32_t needleAt = INT32_MIN;
+  int32_t needleAt = INT32_MIN, peakAt = INT32_MIN;
 };
 
 struct SettingsPage {
@@ -66,7 +67,7 @@ uint8_t page = PAGE_BOOST;
 uint32_t shownAt = 0;  // when the current page came up, for auto-rotate
 uint8_t cameFrom = PAGE_BOOST;    // the page before the last tap, for undoing it on a double tap
 uint8_t returnPage = PAGE_BOOST;  // where the settings page goes back to
-float peakBoost = NAN;
+float extreme[PAGE_COUNT];   // highest or lowest reading since the last reset, per gauge that tracks one; NAN until there is one
 uint32_t toastUntil = 0;
 const char *toastText = "";
 uint32_t toastColor = GREY;
@@ -188,6 +189,12 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   }
   applyBands(g);
 
+  // A thin white needle at the highest (or lowest) reading since the last
+  // reset; added first so the live needle is drawn over it.
+  if (cfg.track) {
+    g.peakNeedle = lv_meter_add_needle_line(g.meter, scale, 3, lv_color_white(), -24);
+    lv_meter_set_indicator_value(g.meter, g.peakNeedle, cfg.min * cfg.mul);
+  }
   g.needle = lv_meter_add_needle_line(g.meter, scale, 6, lv_color_hex(0xFF6D00), -24);
   lv_meter_set_indicator_value(g.meter, g.needle, cfg.min * cfg.mul);
   if (cfg.mul > 1) lv_obj_add_event_cb(g.meter, scaledTickLabels, LV_EVENT_DRAW_PART_BEGIN, (void *)&cfg);
@@ -260,13 +267,28 @@ lv_obj_t *screenFor(uint8_t p) {
   return gauges[p].screen;
 }
 
-void showPage(uint8_t p) {
+bool shown(uint8_t p) {
+  return p < PAGE_COUNT && (settings().pageMask >> p & 1);
+}
+
+// The first page at or after `from` that is switched on, going round; PAGE_BOOST
+// if the mask somehow has none.
+uint8_t visibleFrom(uint8_t from) {
+  for (uint8_t i = 0; i < PAGE_COUNT; i++)
+    if (shown((from + i) % PAGE_COUNT)) return (from + i) % PAGE_COUNT;
+  return PAGE_BOOST;
+}
+
+// `remember` is for a page the person chose by tapping. The rotation and a
+// warning's jump don't count: that would write flash every few seconds, and
+// leave the gauge starting on whatever last warned.
+void showPage(uint8_t p, bool remember = false) {
   page = p;
   shownAt = millis();
   lv_scr_load(screenFor(p));
   obd_setFocus(p < PAGE_COUNT ? gauges[p].cfg->focus : Focus::None);
 
-  if (p == PAGE_SETTINGS) return;  // reached by long press only; never the page to boot into
+  if (!remember || p == PAGE_SETTINGS || settings().startPage != START_LAST) return;
   Preferences prefs;
   prefs.begin("gauge", false);
   prefs.putUChar("page", p);
@@ -276,6 +298,7 @@ void showPage(uint8_t p) {
 }  // namespace
 
 void ui_init() {
+  for (float &e : extreme) e = NAN;
   gauges[PAGE_BOOST] = makeGauge(BOOST);
   gauges[PAGE_LOAD] = makeGauge(LOAD);
   gauges[PAGE_COOLANT] = makeGauge(COOLANT);
@@ -285,11 +308,14 @@ void ui_init() {
   makeSettings();
   for (uint8_t i = 0; i < PAGE_COUNT; i++) addPageDots(gauges[i].screen, i, PAGE_COUNT);
 
-  Preferences prefs;
-  prefs.begin("gauge", true);
-  const uint8_t saved = prefs.getUChar("page", PAGE_BOOST);
-  prefs.end();
-  showPage(saved < PAGE_COUNT ? saved : PAGE_BOOST);
+  uint8_t start = settings().startPage;
+  if (start == START_LAST) {
+    Preferences prefs;
+    prefs.begin("gauge", true);
+    start = prefs.getUChar("page", PAGE_BOOST);
+    prefs.end();
+  }
+  showPage(visibleFrom(start < PAGE_COUNT ? start : PAGE_BOOST));
 }
 
 // Whether a gauge's reading is fresh and past its warning threshold.
@@ -309,13 +335,17 @@ static bool warning(uint8_t p, const Telemetry &t, const Settings &s) {
 // stayed clear for ALARM_CLEAR_MS, so a reading hovering at its threshold
 // doesn't keep pulling the screen back. Returns whether any warning is live.
 static constexpr uint32_t ALARM_CLEAR_MS = 3000;
+static constexpr uint32_t STARTUP_GRACE_MS = 20000;
 static bool warned[PAGE_COUNT];
 static uint32_t clearSince[PAGE_COUNT];
 
 static bool checkAlarms(const Telemetry &t, const Settings &s) {
   bool any = false;
   for (uint8_t i = 0; i < PAGE_COUNT; i++) {
-    if (warning(i, t, s)) {
+    // A gauge that is switched off stays off, and the first few seconds are
+    // skipped: starting the engine drags the battery down and would pull the
+    // screen to the battery gauge every time.
+    if (shown(i) && millis() > STARTUP_GRACE_MS && warning(i, t, s)) {
       clearSince[i] = 0;
       if (!warned[i]) {
         warned[i] = true;
@@ -330,57 +360,78 @@ static bool checkAlarms(const Telemetry &t, const Settings &s) {
   return any;
 }
 
+// Keeps each tracking gauge's needle where its extreme is; with none yet it rests at the start of the scale.
+static void moveExtremeNeedles() {
+  for (uint8_t i = 0; i < PAGE_COUNT; i++) {
+    Gauge &g = gauges[i];
+    if (!g.cfg->track) continue;
+    const float v = isnan(extreme[i]) ? (float)g.cfg->min : constrain(extreme[i], (float)g.cfg->min, (float)g.cfg->max);
+    const int32_t at = lroundf(v * g.cfg->mul);
+    if (at == g.peakAt) continue;
+    lv_meter_set_indicator_value(g.meter, g.peakNeedle, at);
+    g.peakAt = at;
+  }
+}
+
+// A gauge's reading, and whether it is fresh.
+static bool reading(uint8_t p, const Telemetry &t, float &v) {
+  uint32_t at = 0;
+  switch (p) {
+    case PAGE_BOOST: v = t.boostPsi, at = t.boostAt; break;
+    case PAGE_LOAD: v = t.loadPct, at = t.loadAt; break;
+    case PAGE_COOLANT: v = t.coolantF, at = t.coolantAt; break;
+    case PAGE_OIL: v = t.oilF, at = t.oilAt; break;
+    case PAGE_INTAKE: v = t.intakeF, at = t.intakeAt; break;
+    case PAGE_VOLTS: v = t.volts, at = t.voltsAt; break;
+  }
+  return fresh(at);
+}
+
 void ui_update(const Telemetry &t) {
   const Settings &s = settings();
   // Wi-Fi went off by itself (web page button or idle timeout): back to the gauges.
   if (page == PAGE_SETTINGS && !webconfig_active()) showPage(returnPage);
   const bool alarmed = checkAlarms(t, s);
-  if (s.autoRotate && !alarmed && page != PAGE_SETTINGS && millis() - shownAt >= (uint32_t)(s.autoRotateSecs * 1000)) ui_nextPage();
+  if (s.autoRotate && !alarmed && page != PAGE_SETTINGS && millis() - shownAt >= (uint32_t)(s.autoRotateSecs * 1000)) showPage(visibleFrom((page + 1) % PAGE_COUNT));
   const bool live = t.state == ObdState::Live || t.state == ObdState::Simulated;
-  if (live && fresh(t.boostAt) && !(t.boostPsi <= peakBoost)) peakBoost = t.boostPsi;
+  for (uint8_t i = 0; i < PAGE_COUNT; i++) {
+    float v;
+    // Battery voltage is read by the adapter itself, so it counts without the engine answering.
+    if (!gauges[i].cfg->track || !(live || i == PAGE_VOLTS) || !reading(i, t, v)) continue;
+    const int8_t dir = gauges[i].cfg->track;
+    if (isnan(extreme[i]) || (dir > 0 ? v > extreme[i] : v < extreme[i])) extreme[i] = v;
+  }
+  moveExtremeNeedles();
+
+  if (page == PAGE_SETTINGS) {
+    updateSettings();
+    return;
+  }
 
   char buf[40];
   const char *status = statusFor(t, buf, sizeof buf);
-
-  switch (page) {
-    case PAGE_BOOST: {
-      char peak[24];
-      if (live && !isnan(peakBoost)) {
-        snprintf(peak, sizeof peak, t.state == ObdState::Simulated ? "PEAK %.1f  (SIM)" : "PEAK %.1f", peakBoost);
-        status = peak;
-      }
-      setGauge(gauges[PAGE_BOOST], fresh(t.boostAt), t.boostPsi, warning(PAGE_BOOST, t, s), status);
-      break;
-    }
-    case PAGE_LOAD:
-      setGauge(gauges[PAGE_LOAD], fresh(t.loadAt), t.loadPct, false, status);
-      break;
-    case PAGE_COOLANT:
-      setGauge(gauges[PAGE_COOLANT], fresh(t.coolantAt), t.coolantF, warning(PAGE_COOLANT, t, s), status);
-      break;
-    case PAGE_OIL:
-      setGauge(gauges[PAGE_OIL], fresh(t.oilAt), t.oilF, warning(PAGE_OIL, t, s), status);
-      break;
-    case PAGE_INTAKE:
-      setGauge(gauges[PAGE_INTAKE], fresh(t.intakeAt), t.intakeF, warning(PAGE_INTAKE, t, s), status);
-      break;
-    case PAGE_VOLTS:
-      setGauge(gauges[PAGE_VOLTS], fresh(t.voltsAt), t.volts, warning(PAGE_VOLTS, t, s), status);
-      break;
-    case PAGE_SETTINGS:
-      updateSettings();
-      break;
+  char held[32];
+  const Gauge &g = gauges[page];
+  if (g.cfg->track && !isnan(extreme[page]) && (live || page == PAGE_VOLTS)) {
+    char num[16];
+    snprintf(num, sizeof num, g.cfg->fmt, extreme[page]);
+    snprintf(held, sizeof held, "%s %s%s", g.cfg->track > 0 ? "PEAK" : "LOW", num, t.state == ObdState::Simulated ? "  (SIM)" : "");
+    status = held;
   }
+  float v = 0;
+  const bool ok = reading(page, t, v);
+  setGauge(gauges[page], ok, v, warning(page, t, s), status);
 }
 
 void ui_applySettings() {
   for (uint8_t i = 0; i < PAGE_COUNT; i++) applyBands(gauges[i]);
+  if (page != PAGE_SETTINGS && !shown(page)) showPage(visibleFrom(page));   // the page on screen was just switched off
 }
 
 void ui_nextPage() {
   if (page == PAGE_SETTINGS) return;
   cameFrom = page;
-  showPage((page + 1) % PAGE_COUNT);
+  showPage(visibleFrom((page + 1) % PAGE_COUNT), true);
 }
 
 // Two quick taps: the first already moved on a page, so go back to where it
@@ -414,6 +465,19 @@ void ui_brightness(int dir) {
   static char text[24];
   snprintf(text, sizeof text, "Brightness %u%%", pick >= 0 ? s.backlight : settings().backlight);
   toastText = text;
+  toastColor = WHITE;
+  toastUntil = millis() + 3000;
+}
+
+// A tap, then a press held on a gauge that tracks a peak or low: the first tap
+// already moved on, so go back, and start that reading over.
+void ui_tapHold() {
+  if (page == PAGE_SETTINGS) return;
+  showPage(cameFrom);
+  const int8_t dir = gauges[page].cfg->track;
+  if (!dir) return;
+  extreme[page] = NAN;
+  toastText = dir > 0 ? "Peak reset" : "Low reset";
   toastColor = WHITE;
   toastUntil = millis() + 3000;
 }

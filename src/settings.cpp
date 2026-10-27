@@ -10,7 +10,7 @@ namespace {
 // Stored as one blob rather than a key per field: the whole struct round-trips
 // in two NVS calls, and a version mismatch after a firmware change falls back
 // to defaults instead of leaving half the fields stale. Bump on any layout change.
-constexpr uint16_t LAYOUT = 3;
+constexpr uint16_t LAYOUT = 4;
 
 struct Stored {
   uint16_t layout;
@@ -39,6 +39,9 @@ void sanitize(Settings &s) {
   s.voltsLowWarn = clampf(s.voltsLowWarn, 10, 14);
   s.voltsHighWarn = clampf(s.voltsHighWarn, 13, 16);
   s.autoRotateSecs = clampf(s.autoRotateSecs, 1, 60);
+  s.pageMask &= (1u << GAUGE_PAGES) - 1;
+  if (!s.pageMask) s.pageMask = 1;                       // something has to be showing
+  if (s.startPage != START_LAST && s.startPage >= GAUGE_PAGES) s.startPage = 0;
   // A low warning above the high one would paint the whole scale; keep them apart.
   if (s.voltsLowWarn > s.voltsHighWarn - 0.5f) s.voltsLowWarn = s.voltsHighWarn - 0.5f;
 }
@@ -56,6 +59,8 @@ Settings settings_defaults() {
   s.voltsHighWarn = VOLTS_HIGH_WARN;
   s.autoRotate = AUTO_ROTATE;
   s.autoRotateSecs = AUTO_ROTATE_SECS;
+  s.pageMask = PAGE_MASK;
+  s.startPage = START_PAGE;
   return s;
 }
 

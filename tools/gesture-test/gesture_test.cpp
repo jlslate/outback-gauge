@@ -4,7 +4,7 @@
 #include <string>
 
 const char *name(TouchEvent e) {
-  switch (e) { case TouchEvent::Tap: return "Tap"; case TouchEvent::LongPress: return "LongPress"; case TouchEvent::DoubleTap: return "DoubleTap"; case TouchEvent::SwipeUp: return "SwipeUp"; case TouchEvent::SwipeDown: return "SwipeDown";
+  switch (e) { case TouchEvent::Tap: return "Tap"; case TouchEvent::LongPress: return "LongPress"; case TouchEvent::DoubleTap: return "DoubleTap"; case TouchEvent::TapHold: return "TapHold"; case TouchEvent::SwipeUp: return "SwipeUp"; case TouchEvent::SwipeDown: return "SwipeDown";
     default: return "None"; }
 }
 struct Sample { bool report, down; int x, y; };
@@ -39,6 +39,8 @@ int main() {
     {"intermittent reports while held", sparse(6, 200, 200, 3) + lift(200, 200), "Tap"},
     {"two taps far apart", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(40, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,Tap"},
     {"double tap", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,DoubleTap"},
+    {"tap then hold", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(40, 200, 200) + lift(200, 200), "Tap,TapHold"},
+    {"tap, long pause, then hold is a long press", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(40, {false,false,0,0}) + hold(60, 200, 200) + lift(200, 200), "Tap,LongPress"},
     {"triple tap", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,DoubleTap,Tap"},
   };
   int fails = 0;

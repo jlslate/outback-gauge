@@ -26,6 +26,9 @@ void check(String &o, const char *id, const char *label, bool on) {
   o += "</span></label>";
 }
 
+// In the order of the pages in ui.cpp.
+const char *const PAGE_NAMES[GAUGE_PAGES] = {"Boost", "Engine load", "Coolant", "Oil temperature", "Intake air", "Battery"};
+
 String render(const Settings &s, const char *note) {
   String o;
   o.reserve(6000);
@@ -45,6 +48,7 @@ String render(const Settings &s, const char *note) {
          "label em{color:#777;font-style:normal;font-size:.8rem;min-width:2.4rem}"
          "input[type=number]{width:5.5rem;padding:.5rem;background:#1c1c1c;border:1px solid #333;"
          "border-radius:6px;color:#fff;font-size:1rem;text-align:right}"
+         "select{padding:.5rem;background:#1c1c1c;border:1px solid #333;border-radius:6px;color:#fff;font-size:1rem}"
          "input[type=range]{flex:1;accent-color:#FF6D00}"
          "input[type=checkbox]{width:1.35rem;height:1.35rem;accent-color:#FF6D00}"
          "button{width:100%;padding:.85rem;margin-top:1.2rem;border:0;border-radius:8px;"
@@ -81,6 +85,24 @@ String render(const Settings &s, const char *note) {
   o += F("<h2>Rotation</h2>");
   check(o, "auto", "Cycle through the gauges", s.autoRotate);
   num(o, "secs", "Seconds per gauge", "min=1 max=60 step=0.5", s.autoRotateSecs, 1, "s");
+  o += F("<h2>Gauges</h2><label><span>Start on</span><select name=start>");
+  for (int i = -1; i < GAUGE_PAGES; i++) {
+    const int v = i < 0 ? START_LAST : i;
+    o += F("<option value=");
+    o += String(v);
+    o += s.startPage == v ? F(" selected>") : F(">");
+    o += i < 0 ? "The last one I tapped to" : PAGE_NAMES[i];
+    o += F("</option>");
+  }
+  o += F("</select></label>");
+  for (int i = 0; i < GAUGE_PAGES; i++) {
+    char id[8];
+    snprintf(id, sizeof id, "pg%d", i);
+    check(o, id, PAGE_NAMES[i], s.pageMask & (1u << i));
+  }
+  o += F("<p class=warn>Unticked gauges are never shown, not even for a warning. "
+         "The start gauge falls back to the first one shown if you hide it.</p>");
+
   o += F("<p class=warn>Tap the screen to move on early. Hold to open this page.</p>"
          "<button>Save</button></form>"
          "<form method=POST action=/defaults><button class=ghost>Restore defaults</button></form>"

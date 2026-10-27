@@ -21,7 +21,13 @@ struct Settings {
 
   bool autoRotate;      // step through the gauges on a timer
   float autoRotateSecs;  // seconds each gauge stays up
+
+  uint8_t pageMask;   // bit per gauge page, in the order of the pages in ui.cpp: set = shown
+  uint8_t startPage;  // the page to come up on at power-up, or START_LAST for the last one tapped to
 };
+
+constexpr int GAUGE_PAGES = 6;             // keep in step with the page list in ui.cpp and webpage.cpp
+constexpr uint8_t START_LAST = 255;
 
 Settings settings_defaults();
 const Settings &settings();  // current values; safe to read every frame

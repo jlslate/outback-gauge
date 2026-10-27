@@ -60,6 +60,8 @@ int main() {
   Telemetry t; t.state = ObdState::Live;
   uint32_t s = now_ms - 10;
   t.boostPsi = 14.8f; t.boostAt = s; ui_update(t);   // sets the peak
+  t.oilF = 236; t.intakeF = 131; t.volts = 10.9f; t.oilAt = t.intakeAt = t.voltsAt = s;   // the highs and the low
+  ui_update(t);
   t.boostPsi = 12.4f; t.loadPct = 64; t.coolantF = 203; t.oilF = 221; t.intakeF = 97; t.volts = 14.2f;
   t.loadAt = t.coolantAt = t.oilAt = t.intakeAt = t.voltsAt = s;
 
