@@ -18,6 +18,21 @@ void num(String &o, const char *id, const char *label, const char *attrs, float 
   o += "</em></label>";
 }
 
+// A limit as a bare input with its unit, for a table cell.
+void limit(String &o, const char *id, const char *attrs, float v, int dp, const char *unit) {
+  char buf[16];
+  snprintf(buf, sizeof buf, "%.*f", dp, v);
+  o += "<span class=lim><input type=number name=";
+  o += id;
+  o += " ";
+  o += attrs;
+  o += " value=";
+  o += buf;
+  o += "><em>";
+  o += unit;
+  o += "</em></span>";
+}
+
 void check(String &o, const char *id, const char *label, bool on) {
   o += "<label class=chk><input type=checkbox name=";
   o += id;
@@ -50,6 +65,17 @@ String render(const Settings &s, const char *note) {
          "border-radius:6px;color:#fff;font-size:1rem;text-align:right}"
          "select{padding:.5rem;background:#1c1c1c;border:1px solid #333;border-radius:6px;color:#fff;font-size:1rem}"
          "input[type=range]{flex:1;accent-color:#FF6D00}"
+         "table{width:100%;border-collapse:collapse;margin-top:.3rem}"
+         "th{font-size:.7rem;font-weight:400;text-transform:uppercase;letter-spacing:.06em;color:#888;"
+         "text-align:center;padding:.3rem .25rem}"
+         "th:first-child,td:first-child{text-align:left}"
+         "td{padding:.45rem .25rem;border-top:1px solid #222;text-align:center;vertical-align:middle}"
+         "td input[type=number]{width:4.6rem;padding:.4rem}"
+         "td input[type=radio]{width:1.35rem;height:1.35rem;accent-color:#FF6D00}"
+         ".lim{display:flex;align-items:center;justify-content:center;gap:.3rem;margin:.15rem 0}"
+         ".lim em{min-width:1.6rem;text-align:left;white-space:nowrap}"
+         "td input[type=number]{width:4.2rem}"
+         ".none{color:#555}"
          "input[type=checkbox]{width:1.35rem;height:1.35rem;accent-color:#FF6D00}"
          "button{width:100%;padding:.85rem;margin-top:1.2rem;border:0;border-radius:8px;"
          "background:#FF6D00;color:#111;font-size:1rem;font-weight:600}"
@@ -66,14 +92,42 @@ String render(const Settings &s, const char *note) {
     o += F("</div>");
   }
 
-  o += F("<form method=POST action=/save>"
-         "<h2>Warnings</h2>");
-  num(o, "boost", "Boost", "min=0 max=20 step=0.5", s.boostWarnPsi, 1, "psi");
-  num(o, "cool", "Coolant", "min=150 max=260 step=1", s.coolantWarnF, 0, "&deg;F");
-  num(o, "oil", "Oil", "min=180 max=300 step=1", s.oilWarnF, 0, "&deg;F");
-  num(o, "intake", "Intake air", "min=60 max=200 step=1", s.intakeWarnF, 0, "&deg;F");
-  num(o, "vlo", "Battery low", "min=10 max=14 step=0.1", s.voltsLowWarn, 1, "V");
-  num(o, "vhi", "Battery high", "min=13 max=16 step=0.1", s.voltsHighWarn, 1, "V");
+  o += F("<form method=POST action=/save><h2>Gauges</h2><table>"
+         "<tr><th>Gauge<th>Warns at<th>Show<th>Start on</tr>");
+  for (int i = 0; i < GAUGE_PAGES; i++) {
+    o += "<tr><td>";
+    o += PAGE_NAMES[i];
+    o += "<td>";
+    switch (i) {
+      case 0: limit(o, "boost", "min=0 max=20 step=0.5", s.boostWarnPsi, 1, "psi"); break;
+      case 2: limit(o, "cool", "min=150 max=260 step=1", s.coolantWarnF, 0, "&deg;F"); break;
+      case 3: limit(o, "oil", "min=180 max=300 step=1", s.oilWarnF, 0, "&deg;F"); break;
+      case 4: limit(o, "intake", "min=60 max=200 step=1", s.intakeWarnF, 0, "&deg;F"); break;
+      case 5:
+        limit(o, "vlo", "min=10 max=14 step=0.1", s.voltsLowWarn, 1, "V lo");
+        limit(o, "vhi", "min=13 max=16 step=0.1", s.voltsHighWarn, 1, "V hi");
+        break;
+      default: o += "<span class=none>none</span>";
+    }
+    o += "<td><input type=checkbox name=pg";
+    o += String(i);
+    o += s.pageMask & (1u << i) ? " checked>" : ">";
+    o += "<td><input type=radio name=start value=";
+    o += String(i);
+    o += s.startPage == i ? " checked>" : ">";
+    o += "</tr>";
+  }
+  o += F("<tr><td colspan=3>The last one I tapped to<td><input type=radio name=start value=");
+  o += String((int)START_LAST);
+  o += s.startPage == START_LAST ? F(" checked>") : F(">");
+  o += F("</tr></table>"
+         "<p class=warn>Unticked gauges are never shown, not even for a warning. "
+         "The start gauge falls back to the first one shown if you hide it.</p>");
+
+  o += F("<h2>Rotation</h2>");
+  check(o, "auto", "Cycle through the gauges", s.autoRotate);
+  num(o, "secs", "Seconds per gauge", "min=1 max=60 step=0.5", s.autoRotateSecs, 1, "s");
+  o += F("<p class=warn>Tap the screen to move on early. Hold to open this page.</p>");
 
   o += F("<h2>Display</h2><label><span>Backlight</span>"
          "<input type=range name=bl min=5 max=100 step=5 value=");
@@ -82,29 +136,7 @@ String render(const Settings &s, const char *note) {
   o += String((int)s.backlight);
   o += F("%</em></label>");
 
-  o += F("<h2>Rotation</h2>");
-  check(o, "auto", "Cycle through the gauges", s.autoRotate);
-  num(o, "secs", "Seconds per gauge", "min=1 max=60 step=0.5", s.autoRotateSecs, 1, "s");
-  o += F("<h2>Gauges</h2><label><span>Start on</span><select name=start>");
-  for (int i = -1; i < GAUGE_PAGES; i++) {
-    const int v = i < 0 ? START_LAST : i;
-    o += F("<option value=");
-    o += String(v);
-    o += s.startPage == v ? F(" selected>") : F(">");
-    o += i < 0 ? "The last one I tapped to" : PAGE_NAMES[i];
-    o += F("</option>");
-  }
-  o += F("</select></label>");
-  for (int i = 0; i < GAUGE_PAGES; i++) {
-    char id[8];
-    snprintf(id, sizeof id, "pg%d", i);
-    check(o, id, PAGE_NAMES[i], s.pageMask & (1u << i));
-  }
-  o += F("<p class=warn>Unticked gauges are never shown, not even for a warning. "
-         "The start gauge falls back to the first one shown if you hide it.</p>");
-
-  o += F("<p class=warn>Tap the screen to move on early. Hold to open this page.</p>"
-         "<button>Save</button></form>"
+  o += F("<button>Save</button></form>"
          "<form method=POST action=/defaults><button class=ghost>Restore defaults</button></form>"
          "<form method=POST action=/reboot><button class=ghost>Reboot the gauge</button></form>"
          "<form method=POST action=/stop><button class=ghost>Turn Wi-Fi off</button></form>"
