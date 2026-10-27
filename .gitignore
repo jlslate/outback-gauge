@@ -6,3 +6,5 @@
 .DS_Store
 tools/case/.venv
 __pycache__
+tools/can-capture/.venv
+tools/can-capture/logs
