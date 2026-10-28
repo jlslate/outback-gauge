@@ -10,15 +10,58 @@ namespace {
 // Stored as one blob rather than a key per field: the whole struct round-trips
 // in two NVS calls, and a version mismatch after a firmware change falls back
 // to defaults instead of leaving half the fields stale. Bump on any layout change.
-constexpr uint16_t LAYOUT = 7;
-constexpr uint16_t LAYOUT_SIX_GAUGES = 4;   // saved before speed and rpm existed
-constexpr uint16_t LAYOUT_NO_LIMITS = 5;    // saved before they had warning limits
-constexpr uint16_t LAYOUT_NO_ORDER = 6;     // saved before the gauges could be rearranged
+constexpr uint16_t LAYOUT = 8;
 
 struct Stored {
   uint16_t layout;
   Settings s;
 };
+
+// Layout 7 as it was before the fuel gauge, kept so settings saved then (or in
+// 4 to 6, which are shorter prefixes of it) carry over instead of resetting.
+struct SettingsV7 {
+  uint8_t backlight;
+  float boostWarnPsi, coolantWarnF, oilWarnF, intakeWarnF, voltsLowWarn, voltsHighWarn;
+  bool autoRotate;
+  float autoRotateSecs;
+  uint8_t pageMask, startPage;
+  float speedWarnMph, rpmWarn;
+  uint8_t order[8];
+};
+
+struct StoredV7 {
+  uint16_t layout;
+  SettingsV7 s;
+};
+
+constexpr uint8_t V7_ORDER[8] = {5, 0, 2, 1, 4, 3, 6, 7};
+
+SettingsV7 v7From(const Settings &d) {
+  SettingsV7 o{};
+  o.backlight = d.backlight;
+  o.boostWarnPsi = d.boostWarnPsi, o.coolantWarnF = d.coolantWarnF, o.oilWarnF = d.oilWarnF;
+  o.intakeWarnF = d.intakeWarnF, o.voltsLowWarn = d.voltsLowWarn, o.voltsHighWarn = d.voltsHighWarn;
+  o.autoRotate = d.autoRotate, o.autoRotateSecs = d.autoRotateSecs;
+  o.pageMask = d.pageMask & 0xFF, o.startPage = d.startPage;
+  o.speedWarnMph = d.speedWarnMph, o.rpmWarn = d.rpmWarn;
+  memcpy(o.order, V7_ORDER, sizeof o.order);
+  return o;
+}
+
+// fuel is shown and goes last; everything else keeps its place.
+Settings fromV7(const SettingsV7 &o, uint16_t layout) {
+  Settings s = settings_defaults();
+  s.backlight = o.backlight;
+  s.boostWarnPsi = o.boostWarnPsi, s.coolantWarnF = o.coolantWarnF, s.oilWarnF = o.oilWarnF;
+  s.intakeWarnF = o.intakeWarnF, s.voltsLowWarn = o.voltsLowWarn, s.voltsHighWarn = o.voltsHighWarn;
+  s.autoRotate = o.autoRotate, s.autoRotateSecs = o.autoRotateSecs;
+  s.pageMask = o.pageMask | 0x100 | (layout == 4 ? 0xC0 : 0);   // layout 4 predates speed and rpm too
+  s.startPage = o.startPage;
+  s.speedWarnMph = o.speedWarnMph, s.rpmWarn = o.rpmWarn;
+  memcpy(s.order, o.order, sizeof o.order);
+  s.order[8] = 8;
+  return s;
+}
 
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 // Defaults rather than zeros: anything reading settings() before
@@ -42,6 +85,7 @@ void sanitize(Settings &s) {
   s.voltsLowWarn = clampf(s.voltsLowWarn, 10, 14);
   s.voltsHighWarn = clampf(s.voltsHighWarn, 13, 16);
   s.autoRotateSecs = clampf(s.autoRotateSecs, 1, 60);
+  s.fuelWarnPct = clampf(s.fuelWarnPct, 5, 50);
   s.speedWarnMph = clampf(s.speedWarnMph, 20, 160);
   s.rpmWarn = clampf(s.rpmWarn, 3000, 7000);
   bool seen[GAUGE_PAGES] = {};
@@ -80,9 +124,10 @@ Settings settings_defaults() {
   s.startPage = START_PAGE;
   s.speedWarnMph = SPEED_WARN_MPH;
   s.rpmWarn = RPM_WARN;
+  s.fuelWarnPct = FUEL_WARN_PCT;
   // Alphabetical by the gauge's name: battery, boost, coolant, engine load,
-  // intake air, oil temperature, speed, tach (the numbers are the pages in ui.cpp).
-  static const uint8_t alphabetical[GAUGE_PAGES] = {5, 0, 2, 1, 4, 3, 6, 7};
+  // fuel, intake air, oil temperature, speed, tach (the numbers are the pages in ui.cpp).
+  static const uint8_t alphabetical[GAUGE_PAGES] = {5, 0, 2, 1, 8, 4, 3, 6, 7};
   memcpy(s.order, alphabetical, sizeof alphabetical);
   return s;
 }
@@ -96,24 +141,32 @@ void settings_load() {
 
   Preferences prefs;
   prefs.begin("gauge", true);
-  Stored st{LAYOUT, live};   // anything an older blob doesn't carry keeps its default
-  const size_t n = prefs.getBytes("cfg", &st, sizeof st);
+  uint8_t raw[sizeof(Stored) + sizeof(StoredV7)] = {};   // roomy: getBytes refuses a short buffer
+  const size_t n = prefs.getBytes("cfg", raw, sizeof raw);
   prefs.end();
+  uint16_t layout = 0;
+  if (n >= sizeof layout) memcpy(&layout, raw, sizeof layout);
 
-  // Older blobs end where the fields added since begin.
-  const size_t noLimitsBytes = offsetof(Stored, s) + offsetof(Settings, speedWarnMph);
-  const size_t noOrderBytes = offsetof(Stored, s) + offsetof(Settings, order);
-  const bool known = (n == sizeof st && st.layout == LAYOUT) ||
-                     (n == noOrderBytes && st.layout == LAYOUT_NO_ORDER) ||
-                     (n == noLimitsBytes && (st.layout == LAYOUT_NO_LIMITS || st.layout == LAYOUT_SIX_GAUGES));
-  if (known) {
+  if (n == sizeof(Stored) && layout == LAYOUT) {
+    Stored st;
+    memcpy(&st, raw, sizeof st);
     live = st.s;
-    if (st.layout == LAYOUT_SIX_GAUGES) live.pageMask |= 0xC0;   // the new gauges start out shown
     sanitize(live);
     Serial.println("[CFG] loaded saved settings");
+    return;
+  }
+  // Older blobs end where the fields added since begin.
+  StoredV7 old{7, v7From(live)};
+  const size_t noLimitsBytes = offsetof(StoredV7, s) + offsetof(SettingsV7, speedWarnMph);
+  const size_t noOrderBytes = offsetof(StoredV7, s) + offsetof(SettingsV7, order);
+  if ((layout == 7 && n == sizeof old) || (layout == 6 && n == noOrderBytes) ||
+      ((layout == 5 || layout == 4) && n == noLimitsBytes)) {
+    memcpy(&old, raw, n);
+    live = fromV7(old.s, layout);
+    sanitize(live);
+    Serial.printf("[CFG] carried over layout %u settings\n", layout);
   } else if (n) {
-    Serial.printf("[CFG] saved settings are layout %u, wanted %u; using defaults\n",
-                  n >= sizeof st.layout ? st.layout : 0, LAYOUT);
+    Serial.printf("[CFG] saved settings are layout %u, wanted %u; using defaults\n", layout, LAYOUT);
   }
 }
 

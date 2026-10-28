@@ -18,7 +18,7 @@ namespace {
 constexpr lv_coord_t C = LCD_SIZE / 2;  // screen center
 constexpr uint32_t WHITE = 0xFFFFFF, GREY = 0x9E9E9E, RED = 0xE53935, AMBER = 0xFB8C00, BLUE = 0x1E88E5;
 constexpr uint32_t TEXT_GREEN = 0x4CAF50, TEXT_ORANGE = 0xFF9800, TEXT_BLUE = 0x42A5F5, TEXT_PINK = 0xFF4FA3,
-                   TEXT_YELLOW = 0xFFEB3B, TEXT_PURPLE = 0xBA68C8, TEXT_TEAL = 0x26C6DA, TEXT_LIME = 0xC0CA33;
+                   TEXT_YELLOW = 0xFFEB3B, TEXT_PURPLE = 0xBA68C8, TEXT_TEAL = 0x26C6DA, TEXT_LIME = 0xC0CA33, TEXT_SILVER = 0xE0E0E0;
 #define DEG "\xC2\xB0"
 
 // A coloured arc on the scale. One endpoint can be driven by a setting, so the
@@ -47,6 +47,7 @@ const GaugeCfg OIL = {"OIL\nTEMP", DEG "F", "%.0f", 100, 300, 1, 21, 5, {{100, 1
 const GaugeCfg INTAKE = {"INTAKE\nAIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 200, RED, &Settings::intakeWarnF}, {}}, Focus::Intake, TEXT_YELLOW, 1};
 const GaugeCfg SPEED = {"SPEED", "mph", "%.0f", 0, 160, 1, 17, 2, {{0, 160, RED, &Settings::speedWarnMph}, {}}, Focus::Speed, TEXT_TEAL, 1};
 const GaugeCfg TACH = {"TACH", "rpm", "%.0f", 0, 7000, 1, 15, 2, {{0, 7000, RED, &Settings::rpmWarn}, {}}, Focus::Rpm, TEXT_LIME, 1};
+const GaugeCfg FUEL = {"FUEL", "%", "%.0f", 0, 100, 1, 11, 2, {{0, 0, RED, &Settings::fuelWarnPct, false}, {}}, Focus::Fuel, TEXT_SILVER, 0};
 const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts, TEXT_GREEN, -1};
 
 struct Gauge {
@@ -62,7 +63,7 @@ struct SettingsPage {
   lv_obj_t *screen, *caption, *headline, *caption2, *detail, *url, *foot;
 };
 
-enum : uint8_t { PAGE_BOOST, PAGE_LOAD, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_SPEED, PAGE_TACH, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
+enum : uint8_t { PAGE_BOOST, PAGE_LOAD, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_SPEED, PAGE_TACH, PAGE_FUEL, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
 
 Gauge gauges[PAGE_COUNT];
 SettingsPage settingsPage;
@@ -358,6 +359,7 @@ void ui_init() {
   gauges[PAGE_VOLTS] = makeGauge(VOLTS);
   gauges[PAGE_SPEED] = makeGauge(SPEED);
   gauges[PAGE_TACH] = makeGauge(TACH);
+  gauges[PAGE_FUEL] = makeGauge(FUEL);
   loadPeaks();
   makeSettings();
   for (uint8_t i = 0; i < PAGE_COUNT; i++) addPageDots(gauges[i].screen, gauges[i].dots, PAGE_COUNT);
@@ -383,6 +385,7 @@ static bool warning(uint8_t p, const Telemetry &t, const Settings &s) {
     case PAGE_VOLTS: return fresh(t.voltsAt) && (t.volts < s.voltsLowWarn || t.volts > s.voltsHighWarn);
     case PAGE_SPEED: return fresh(t.speedAt) && t.speedMph >= s.speedWarnMph;
     case PAGE_TACH: return fresh(t.rpmAt) && t.rpm >= s.rpmWarn;
+    case PAGE_FUEL: return fresh(t.fuelAt) && t.fuelPct < s.fuelWarnPct;
   }
   return false;  // engine load has no warning
 }
@@ -442,6 +445,7 @@ static bool reading(uint8_t p, const Telemetry &t, float &v) {
     case PAGE_VOLTS: v = t.volts, at = t.voltsAt; break;
     case PAGE_SPEED: v = t.speedMph, at = t.speedAt; break;
     case PAGE_TACH: v = t.rpm, at = t.rpmAt; break;
+    case PAGE_FUEL: v = t.fuelPct, at = t.fuelAt; break;
   }
   return fresh(at);
 }

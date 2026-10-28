@@ -50,6 +50,7 @@ void handleSave() {
   s.voltsHighWarn = argFloat("vhi", s.voltsHighWarn);
   s.speedWarnMph = argFloat("speed", s.speedWarnMph);
   s.rpmWarn = argFloat("rpm", s.rpmWarn);
+  s.fuelWarnPct = argFloat("fuel", s.fuelWarnPct);
   s.backlight = (uint8_t)argFloat("bl", s.backlight);
   // Unchecked boxes aren't posted at all, so presence is the value.
   s.autoRotate = server.hasArg("auto");

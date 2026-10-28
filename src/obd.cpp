@@ -56,7 +56,8 @@ void simulate() {
       s.volts = 14.1f + 0.1f * sinf(t * 1.3f);
       s.rpm = 800.0f + throttle * 4500.0f;
       s.speedMph = throttle * 85.0f;
-      s.boostAt = s.loadAt = s.coolantAt = s.oilAt = s.intakeAt = s.voltsAt = s.rpmAt = s.speedAt = now;
+      s.fuelPct = max(8.0f, 62.0f - t * 0.05f);
+      s.boostAt = s.loadAt = s.coolantAt = s.oilAt = s.intakeAt = s.voltsAt = s.rpmAt = s.speedAt = s.fuelAt = now;
     });
     vTaskDelay(pdMS_TO_TICKS(50));
   }
@@ -294,7 +295,7 @@ bool ecuResponds(uint32_t timeoutMs) {
 
 // ---- polling ---------------------------------------------------------------
 
-enum class Item : uint8_t { Map, Load, Coolant, Oil, Intake, Volts, Rpm, Speed };
+enum class Item : uint8_t { Map, Load, Coolant, Oil, Intake, Volts, Rpm, Speed, Fuel };
 
 float baroKpa = 101.3f;
 
@@ -314,6 +315,7 @@ bool itemSupported(Item item) {
     case Item::Intake: return pidSupported(0x0F) || pidSupported(0x68);
     case Item::Rpm: return pidSupported(0x0C);
     case Item::Speed: return pidSupported(0x0D);
+    case Item::Fuel: return pidSupported(0x2F);
     case Item::Volts: return true;  // the adapter measures this itself
   }
   return true;
@@ -407,6 +409,15 @@ bool poll(Item item) {
       if (!readPid(0x0D, b, 1)) return false;
       edit([&](Telemetry &t) { t.speedMph = b[0] * 0.621371f, t.speedAt = now; });
       return true;
+    case Item::Fuel:
+      if (!readPid(0x2F, b, 1)) return false;
+      // The level sloshes in corners and on hills; ease toward each reading.
+      edit([&](Telemetry &t) {
+        const float v = b[0] * 100.0f / 255.0f;
+        t.fuelPct = t.fuelAt && now - t.fuelAt < 15000 ? t.fuelPct * 0.9f + v * 0.1f : v;
+        t.fuelAt = now;
+      });
+      return true;
     case Item::Volts: {
       String r;
       if (!command("ATRV", r, 600)) return false;
@@ -440,6 +451,7 @@ bool focusItem(Focus f, Item &out) {
     case Focus::Volts: out = Item::Volts; return true;
     case Focus::Speed: out = Item::Speed; return true;
     case Focus::Rpm: out = Item::Rpm; return true;
+    case Focus::Fuel: out = Item::Fuel; return true;
     default: return false;
   }
 }
@@ -456,7 +468,7 @@ void runSession() {
   }
   if (ecu) discoverPids();
 
-  static const Item slowItems[] = {Item::Load, Item::Coolant, Item::Oil, Item::Intake, Item::Volts, Item::Rpm, Item::Speed};
+  static const Item slowItems[] = {Item::Load, Item::Coolant, Item::Oil, Item::Intake, Item::Volts, Item::Rpm, Item::Speed, Item::Fuel};
   size_t slowIdx = 0;
   uint32_t lastSlow = 0, lastBaro = 0;
   int failures = 0;

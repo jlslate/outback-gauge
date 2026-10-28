@@ -38,6 +38,7 @@ it does is also a touch gesture.
 | Intake air (°F) | PID 0x0F |
 | Speed (mph) | PID 0x0D, converted from km/h; carries a peak needle |
 | Tachometer (rpm) | PID 0x0C; carries a peak needle |
+| Fuel (%) | PID 0x2F tank level, smoothed; warns below a set level. Not every car reports it, and this one is untested |
 | Battery (V) | `ATRV`, measured by the adapter; works with the engine off |
 
 **Press and hold for two seconds** on any of these opens the Wi-Fi settings page and starts the
