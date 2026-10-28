@@ -54,7 +54,8 @@ void simulate() {
       s.intakeF = 88.0f + 18.0f * throttle;
       s.volts = 14.1f + 0.1f * sinf(t * 1.3f);
       s.rpm = 800.0f + throttle * 4500.0f;
-      s.boostAt = s.loadAt = s.coolantAt = s.oilAt = s.intakeAt = s.voltsAt = s.rpmAt = now;
+      s.speedMph = throttle * 85.0f;
+      s.boostAt = s.loadAt = s.coolantAt = s.oilAt = s.intakeAt = s.voltsAt = s.rpmAt = s.speedAt = now;
     });
     vTaskDelay(pdMS_TO_TICKS(50));
   }
@@ -286,7 +287,7 @@ bool ecuResponds(uint32_t timeoutMs) {
 
 // ---- polling ---------------------------------------------------------------
 
-enum class Item : uint8_t { Map, Load, Coolant, Oil, Intake, Volts, Rpm };
+enum class Item : uint8_t { Map, Load, Coolant, Oil, Intake, Volts, Rpm, Speed };
 
 float baroKpa = 101.3f;
 
@@ -305,6 +306,7 @@ bool itemSupported(Item item) {
     case Item::Oil: return pidSupported(0x5C);
     case Item::Intake: return pidSupported(0x0F) || pidSupported(0x68);
     case Item::Rpm: return pidSupported(0x0C);
+    case Item::Speed: return pidSupported(0x0D);
     case Item::Volts: return true;  // the adapter measures this itself
   }
   return true;
@@ -394,6 +396,10 @@ bool poll(Item item) {
       if (!readPid(0x0C, b, 2)) return false;
       edit([&](Telemetry &t) { t.rpm = (b[0] * 256 + b[1]) / 4.0f, t.rpmAt = now; });
       return true;
+    case Item::Speed:
+      if (!readPid(0x0D, b, 1)) return false;
+      edit([&](Telemetry &t) { t.speedMph = b[0] * 0.621371f, t.speedAt = now; });
+      return true;
     case Item::Volts: {
       String r;
       if (!command("ATRV", r, 600)) return false;
@@ -425,6 +431,8 @@ bool focusItem(Focus f, Item &out) {
     case Focus::Oil: out = Item::Oil; return true;
     case Focus::Intake: out = Item::Intake; return true;
     case Focus::Volts: out = Item::Volts; return true;
+    case Focus::Speed: out = Item::Speed; return true;
+    case Focus::Rpm: out = Item::Rpm; return true;
     default: return false;
   }
 }
@@ -441,7 +449,7 @@ void runSession() {
   }
   if (ecu) discoverPids();
 
-  static const Item slowItems[] = {Item::Load, Item::Coolant, Item::Oil, Item::Intake, Item::Volts, Item::Rpm};
+  static const Item slowItems[] = {Item::Load, Item::Coolant, Item::Oil, Item::Intake, Item::Volts, Item::Rpm, Item::Speed};
   size_t slowIdx = 0;
   uint32_t lastSlow = 0, lastBaro = 0;
   int failures = 0;

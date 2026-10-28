@@ -31,7 +31,7 @@ static void flush(lv_disp_drv_t *d, const lv_area_t *a, lv_color_t *px) {
 }
 
 static std::vector<uint8_t> sheet;
-static const int COLS = 4, ROWS = 2, GAP = 24, W = COLS * N + (COLS + 1) * GAP, H = ROWS * N + (ROWS + 1) * GAP;
+static const int COLS = 5, ROWS = 2, GAP = 24, W = COLS * N + (COLS + 1) * GAP, H = ROWS * N + (ROWS + 1) * GAP;
 static void capture(int slot) {
   lv_obj_invalidate(lv_scr_act());
   lv_refr_now(nullptr);
@@ -61,20 +61,22 @@ int main() {
   uint32_t s = now_ms - 10;
   t.boostPsi = 14.8f; t.boostAt = s; ui_update(t);   // sets the peak
   t.oilF = 236; t.intakeF = 131; t.volts = 10.9f; t.oilAt = t.intakeAt = t.voltsAt = s;   // the highs and the low
+  t.speedMph = 96; t.rpm = 5400; t.speedAt = t.rpmAt = s;
   ui_update(t);
+  t.speedMph = 63; t.rpm = 2300;
   t.boostPsi = 12.4f; t.loadPct = 64; t.coolantF = 203; t.oilF = 221; t.intakeF = 97; t.volts = 14.2f;
   t.loadAt = t.coolantAt = t.oilAt = t.intakeAt = t.voltsAt = s;
 
-  for (int page = 0; page < 6; page++) {
+  for (int page = 0; page < 8; page++) {
     ui_update(t); capture(page); ui_nextPage();
   }
   // Boost page again while still searching for the adapter.
   Telemetry idle; idle.state = ObdState::Scanning;
-  ui_update(idle); capture(6);
+  ui_update(idle); capture(8);
 
   // Settings page with the access point up, which is the crowded layout.
   ui_longPress();
-  ui_update(t); capture(7);
+  ui_update(t); capture(9);
 
   FILE *f = fopen("gauges.ppm", "wb");
   fprintf(f, "P6\n%d %d\n255\n", W, H); fwrite(sheet.data(), 1, sheet.size(), f); fclose(f);

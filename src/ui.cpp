@@ -18,7 +18,7 @@ namespace {
 constexpr lv_coord_t C = LCD_SIZE / 2;  // screen center
 constexpr uint32_t WHITE = 0xFFFFFF, GREY = 0x9E9E9E, RED = 0xE53935, AMBER = 0xFB8C00, BLUE = 0x1E88E5;
 constexpr uint32_t TEXT_GREEN = 0x4CAF50, TEXT_ORANGE = 0xFF9800, TEXT_BLUE = 0x42A5F5, TEXT_PINK = 0xFF4FA3,
-                   TEXT_YELLOW = 0xFFEB3B, TEXT_PURPLE = 0xBA68C8;
+                   TEXT_YELLOW = 0xFFEB3B, TEXT_PURPLE = 0xBA68C8, TEXT_TEAL = 0x26C6DA, TEXT_LIME = 0xC0CA33;
 #define DEG "\xC2\xB0"
 
 // A coloured arc on the scale. One endpoint can be driven by a setting, so the
@@ -45,6 +45,8 @@ const GaugeCfg LOAD = {"ENGINE\nLOAD", "%", "%.0f", 0, 100, 1, 11, 2, {{}, {}}, 
 const GaugeCfg COOLANT = {"COOLANT", DEG "F", "%.0f", 100, 260, 1, 17, 2, {{100, 140, BLUE}, {0, 260, RED, &Settings::coolantWarnF}}, Focus::Coolant, TEXT_BLUE, 0};
 const GaugeCfg OIL = {"OIL\nTEMP", DEG "F", "%.0f", 100, 300, 1, 21, 5, {{100, 140, BLUE}, {0, 300, RED, &Settings::oilWarnF}}, Focus::Oil, TEXT_PINK, 1};
 const GaugeCfg INTAKE = {"INTAKE\nAIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 200, RED, &Settings::intakeWarnF}, {}}, Focus::Intake, TEXT_YELLOW, 1};
+const GaugeCfg SPEED = {"SPEED", "mph", "%.0f", 0, 160, 1, 17, 2, {{0, 160, RED, &Settings::speedWarnMph}, {}}, Focus::Speed, TEXT_TEAL, 1};
+const GaugeCfg TACH = {"RPM", "rpm", "%.0f", 0, 7000, 1, 15, 2, {{0, 7000, RED, &Settings::rpmWarn}, {}}, Focus::Rpm, TEXT_LIME, 1};
 const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts, TEXT_GREEN, -1};
 
 struct Gauge {
@@ -59,7 +61,7 @@ struct SettingsPage {
   lv_obj_t *screen, *caption, *headline, *caption2, *detail, *url, *foot;
 };
 
-enum : uint8_t { PAGE_BOOST, PAGE_LOAD, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
+enum : uint8_t { PAGE_BOOST, PAGE_LOAD, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_SPEED, PAGE_TACH, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
 
 Gauge gauges[PAGE_COUNT];
 SettingsPage settingsPage;
@@ -131,7 +133,7 @@ const char *statusFor(const Telemetry &t, char *buf, size_t n) {
 
 // ---- round gauges ----------------------------------------------------------
 
-// The meter only knows integers, so scales with mul > 1 relabel their ticks.
+// The meter only knows integers, so scales with mul > 1 relabel their ticks; so does the tach, in thousands.
 // LVGL 8.3 leaves text_length at 0 for meter ticks, so point the label at our
 // own buffer instead of writing into theirs; it's drawn before the next tick.
 void scaledTickLabels(lv_event_t *e) {
@@ -139,7 +141,8 @@ void scaledTickLabels(lv_event_t *e) {
   auto *cfg = (const GaugeCfg *)lv_event_get_user_data(e);
   if (dsc->class_p != &lv_meter_class || dsc->type != LV_METER_DRAW_PART_TICK || !dsc->text) return;
   static char buf[8];
-  lv_snprintf(buf, sizeof buf, "%d", (int)(dsc->value / cfg->mul));
+  const int div = cfg->max >= 1000 ? 1000 : cfg->mul;   // rpm is labelled in thousands
+  lv_snprintf(buf, sizeof buf, "%d", (int)(dsc->value / div));
   dsc->text = buf;
 }
 
@@ -197,7 +200,7 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   }
   g.needle = lv_meter_add_needle_line(g.meter, scale, 6, lv_color_hex(0xFF6D00), -24);
   lv_meter_set_indicator_value(g.meter, g.needle, cfg.min * cfg.mul);
-  if (cfg.mul > 1) lv_obj_add_event_cb(g.meter, scaledTickLabels, LV_EVENT_DRAW_PART_BEGIN, (void *)&cfg);
+  if (cfg.mul > 1 || cfg.max >= 1000) lv_obj_add_event_cb(g.meter, scaledTickLabels, LV_EVENT_DRAW_PART_BEGIN, (void *)&cfg);
 
   g.value = label(g.screen, &font_big, WHITE, 0, 94);
   lv_label_set_text(label(g.screen, &lv_font_montserrat_24, GREY, 0, 140), cfg.unit);
@@ -332,6 +335,8 @@ void ui_init() {
   gauges[PAGE_OIL] = makeGauge(OIL);
   gauges[PAGE_INTAKE] = makeGauge(INTAKE);
   gauges[PAGE_VOLTS] = makeGauge(VOLTS);
+  gauges[PAGE_SPEED] = makeGauge(SPEED);
+  gauges[PAGE_TACH] = makeGauge(TACH);
   loadPeaks();
   makeSettings();
   for (uint8_t i = 0; i < PAGE_COUNT; i++) addPageDots(gauges[i].screen, i, PAGE_COUNT);
@@ -354,6 +359,8 @@ static bool warning(uint8_t p, const Telemetry &t, const Settings &s) {
     case PAGE_OIL: return fresh(t.oilAt) && t.oilF >= s.oilWarnF;
     case PAGE_INTAKE: return fresh(t.intakeAt) && t.intakeF >= s.intakeWarnF;
     case PAGE_VOLTS: return fresh(t.voltsAt) && (t.volts < s.voltsLowWarn || t.volts > s.voltsHighWarn);
+    case PAGE_SPEED: return fresh(t.speedAt) && t.speedMph >= s.speedWarnMph;
+    case PAGE_TACH: return fresh(t.rpmAt) && t.rpm >= s.rpmWarn;
   }
   return false;  // engine load has no warning
 }
@@ -411,6 +418,8 @@ static bool reading(uint8_t p, const Telemetry &t, float &v) {
     case PAGE_OIL: v = t.oilF, at = t.oilAt; break;
     case PAGE_INTAKE: v = t.intakeF, at = t.intakeAt; break;
     case PAGE_VOLTS: v = t.volts, at = t.voltsAt; break;
+    case PAGE_SPEED: v = t.speedMph, at = t.speedAt; break;
+    case PAGE_TACH: v = t.rpm, at = t.rpmAt; break;
   }
   return fresh(at);
 }

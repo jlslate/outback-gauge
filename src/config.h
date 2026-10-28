@@ -24,10 +24,10 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 #define DISPLAY_MOUNT_DEG 90
 
 // Which gauge the screen comes up on at power-up (0 boost, 1 engine load, 2 coolant,
-// 3 oil temperature, 4 intake air, 5 battery; 255 = the last one you tapped to),
-// and which gauges are shown at all (one bit each, in that order; 0x3F is all six).
+// 3 oil temperature, 4 intake air, 5 battery, 6 speed, 7 rpm; 255 = the last one you tapped to),
+// and which gauges are shown at all (one bit each, in that order; 0xFF is all eight).
 #define START_PAGE 0
-#define PAGE_MASK 0x3F
+#define PAGE_MASK 0xFF
 
 // Step through the gauges on a timer. A tap still moves on early.
 #define AUTO_ROTATE 1
@@ -40,6 +40,8 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 #define INTAKE_WARN_F 140.0f
 #define VOLTS_LOW_WARN 12.0f
 #define VOLTS_HIGH_WARN 15.2f
+#define SPEED_WARN_MPH 85.0f
+#define RPM_WARN 6000.0f
 
 // Settings access point. Compile-time only: it has to be reachable before you
 // can change anything. How long it stays up with no requests before shutting

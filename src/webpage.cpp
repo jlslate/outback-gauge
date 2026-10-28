@@ -42,7 +42,7 @@ void check(String &o, const char *id, const char *label, bool on) {
 }
 
 // In the order of the pages in ui.cpp.
-const char *const PAGE_NAMES[GAUGE_PAGES] = {"Boost", "Engine load", "Coolant", "Oil temperature", "Intake air", "Battery"};
+const char *const PAGE_NAMES[GAUGE_PAGES] = {"Boost", "Engine load", "Coolant", "Oil temperature", "Intake air", "Battery", "Speed", "Tachometer"};
 
 String render(const Settings &s, const char *note) {
   String o;
@@ -113,6 +113,8 @@ String render(const Settings &s, const char *note) {
         limit(o, "vlo", "min=10 max=14 step=0.1", s.voltsLowWarn, 1, "V lo");
         limit(o, "vhi", "min=13 max=16 step=0.1", s.voltsHighWarn, 1, "V hi");
         break;
+      case 6: limit(o, "speed", "min=20 max=160 step=1", s.speedWarnMph, 0, "mph"); break;
+      case 7: limit(o, "rpm", "min=3000 max=7000 step=100", s.rpmWarn, 0, "rpm"); break;
       default: o += "<span class=none>none</span>";
     }
     o += "<td><input type=checkbox name=pg";

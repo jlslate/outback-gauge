@@ -24,9 +24,13 @@ struct Settings {
 
   uint8_t pageMask;   // bit per gauge page, in the order of the pages in ui.cpp: set = shown
   uint8_t startPage;  // the page to come up on at power-up, or START_LAST for the last one tapped to
+
+  // Added after the rest, so a blob saved without them still loads (see settings_load).
+  float speedWarnMph;
+  float rpmWarn;
 };
 
-constexpr int GAUGE_PAGES = 6;             // keep in step with the page list in ui.cpp and webpage.cpp
+constexpr int GAUGE_PAGES = 8;             // keep in step with the page list in ui.cpp and webpage.cpp
 constexpr uint8_t START_LAST = 255;
 
 Settings settings_defaults();

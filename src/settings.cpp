@@ -10,7 +10,9 @@ namespace {
 // Stored as one blob rather than a key per field: the whole struct round-trips
 // in two NVS calls, and a version mismatch after a firmware change falls back
 // to defaults instead of leaving half the fields stale. Bump on any layout change.
-constexpr uint16_t LAYOUT = 4;
+constexpr uint16_t LAYOUT = 6;
+constexpr uint16_t LAYOUT_SIX_GAUGES = 4;   // saved before speed and rpm existed
+constexpr uint16_t LAYOUT_NO_LIMITS = 5;    // saved before they had warning limits
 
 struct Stored {
   uint16_t layout;
@@ -39,6 +41,8 @@ void sanitize(Settings &s) {
   s.voltsLowWarn = clampf(s.voltsLowWarn, 10, 14);
   s.voltsHighWarn = clampf(s.voltsHighWarn, 13, 16);
   s.autoRotateSecs = clampf(s.autoRotateSecs, 1, 60);
+  s.speedWarnMph = clampf(s.speedWarnMph, 20, 160);
+  s.rpmWarn = clampf(s.rpmWarn, 3000, 7000);
   s.pageMask &= (1u << GAUGE_PAGES) - 1;
   if (!s.pageMask) s.pageMask = 1;                       // something has to be showing
   if (s.startPage != START_LAST && s.startPage >= GAUGE_PAGES) s.startPage = 0;
@@ -65,6 +69,8 @@ Settings settings_defaults() {
   s.autoRotateSecs = AUTO_ROTATE_SECS;
   s.pageMask = PAGE_MASK;
   s.startPage = START_PAGE;
+  s.speedWarnMph = SPEED_WARN_MPH;
+  s.rpmWarn = RPM_WARN;
   return s;
 }
 
@@ -77,17 +83,22 @@ void settings_load() {
 
   Preferences prefs;
   prefs.begin("gauge", true);
-  Stored st;
+  Stored st{LAYOUT, live};   // anything an older blob doesn't carry keeps its default
   const size_t n = prefs.getBytes("cfg", &st, sizeof st);
   prefs.end();
 
-  if (n == sizeof st && st.layout == LAYOUT) {
+  // Blobs from before the speed and rpm limits end where those fields begin.
+  const size_t oldBytes = offsetof(Stored, s) + offsetof(Settings, speedWarnMph);
+  const bool known = (n == sizeof st && st.layout == LAYOUT) ||
+                     (n == oldBytes && (st.layout == LAYOUT_NO_LIMITS || st.layout == LAYOUT_SIX_GAUGES));
+  if (known) {
     live = st.s;
+    if (st.layout == LAYOUT_SIX_GAUGES) live.pageMask |= 0xC0;   // the new gauges start out shown
     sanitize(live);
     Serial.println("[CFG] loaded saved settings");
   } else if (n) {
     Serial.printf("[CFG] saved settings are layout %u, wanted %u; using defaults\n",
-                  n == sizeof st ? st.layout : 0, LAYOUT);
+                  n >= sizeof st.layout ? st.layout : 0, LAYOUT);
   }
 }
 

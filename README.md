@@ -19,10 +19,10 @@ adapter.
 
 The gauges cycle on their own every 3 seconds (adjustable, or off, on the
 settings page). **Tap** to go to the next one early; **double tap** to turn auto-rotate on or off
-(the status line says which, and the page stays where it was). Boost, oil temperature and intake air carry a thin white needle at the highest
+(the status line says which, and the page stays where it was). Boost, oil temperature, intake air, speed and rpm carry a thin white needle at the highest
 reading since the last reset, and battery one at the lowest (the status line
 says "PEAK" or "LOW" with the number). **Press and hold** (about half a second) on one of
-those gauges to start it over. Boost, oil and intake peaks survive a reboot (saved at most once a minute while driving); the battery low starts over each time, since cranking sets it. **Swipe up or down** for a brighter or dimmer screen (5, 20, 40, 60, 80 or 100%). The dots along the bottom show where you are. The Wi-Fi page chooses which
+those gauges to start it over. Boost, oil, intake, speed and rpm peaks survive a reboot (saved at most once a minute while driving); the battery low starts over each time, since cranking sets it. **Swipe up or down** for a brighter or dimmer screen (5, 20, 40, 60, 80 or 100%). The dots along the bottom show where you are. The Wi-Fi page chooses which
 gauge the screen starts on (or "the last one I tapped to") and which gauges are
 shown at all. The BOOT button does the same from the bench — a
 short press moves to the next page, holding it opens Wi-Fi — but
@@ -36,6 +36,8 @@ it does is also a touch gesture.
 | Coolant (°F) | PID 0x05 |
 | Oil temperature (°F) | PID 0x5C, which this car reports |
 | Intake air (°F) | PID 0x0F |
+| Speed (mph) | PID 0x0D, converted from km/h; carries a peak needle |
+| Tachometer (rpm) | PID 0x0C; carries a peak needle |
 | Battery (V) | `ATRV`, measured by the adapter; works with the engine off |
 
 **Press and hold for two seconds** on any of these opens the Wi-Fi settings page and starts the
