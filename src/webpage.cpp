@@ -133,7 +133,7 @@ String render(const Settings &s, const char *note) {
   o += F("<h2>Rotation</h2>");
   check(o, "auto", "Cycle through the gauges", s.autoRotate);
   num(o, "secs", "Seconds per gauge", "min=1 max=60 step=0.5", s.autoRotateSecs, 1, "s");
-  o += F("<p class=warn>Tap the screen to move on early. Hold to open this page.</p>");
+  o += F("<p class=warn>Tap the screen to move on early. Hold for 2 seconds to open this page.</p>");
 
   o += F("<h2>Display</h2><label><span>Backlight</span>"
          "<input type=range name=bl min=5 max=100 step=5 value=");
@@ -145,7 +145,7 @@ String render(const Settings &s, const char *note) {
   o += F("<button>Save</button></form>"
          "<form method=POST action=/defaults data-toast=\"Defaults restored\" data-ask=\"Tap again to restore defaults\" data-confirm=\"Put every setting back to its default?\">"
          "<button class=ghost>Restore defaults</button></form>"
-         "<form method=POST action=/reboot data-ask=\"Tap again to reboot\" data-confirm=\"Reboot the gauge? The Wi-Fi drops, so hold the screen to bring it back.\">"
+         "<form method=POST action=/reboot data-ask=\"Tap again to reboot\" data-confirm=\"Reboot the gauge? The Wi-Fi drops, so hold the screen for 2 seconds to bring it back.\">"
          "<button class=ghost>Reboot the gauge</button></form>"
          "<form method=POST action=/stop data-ask=\"Tap again to turn Wi-Fi off\" data-confirm=\"Turn Wi-Fi off? Hold the screen to bring it back.\">"
          "<button class=ghost>Turn Wi-Fi off</button></form>"

@@ -4,7 +4,7 @@
 #include <string>
 
 const char *name(TouchEvent e) {
-  switch (e) { case TouchEvent::Tap: return "Tap"; case TouchEvent::LongPress: return "LongPress"; case TouchEvent::DoubleTap: return "DoubleTap"; case TouchEvent::TapHold: return "TapHold"; case TouchEvent::SwipeUp: return "SwipeUp"; case TouchEvent::SwipeDown: return "SwipeDown";
+  switch (e) { case TouchEvent::Tap: return "Tap"; case TouchEvent::LongPress: return "LongPress"; case TouchEvent::DoubleTap: return "DoubleTap"; case TouchEvent::Hold: return "Hold"; case TouchEvent::SwipeUp: return "SwipeUp"; case TouchEvent::SwipeDown: return "SwipeDown";
     default: return "None"; }
 }
 struct Sample { bool report, down; int x, y; };
@@ -27,20 +27,20 @@ int main() {
     {"tap with lift report", hold(5, 200, 200) + lift(200, 200), "Tap"},
     {"tap ended by report gap", hold(5, 200, 200), "Tap"},
     {"tap with jitter", drag(200, 200, 212, 190, 5), "Tap"},
-    {"long press", hold(60, 200, 200) + lift(200, 200), "LongPress"},
-    {"long press then gap", hold(60, 200, 200), "LongPress"},
+    {"long press (hold on the way)", hold(120, 200, 200) + lift(200, 200), "Hold,LongPress"},
+    {"long press then gap", hold(120, 200, 200), "Hold,LongPress"},
     {"swipe is not a tap", drag(320, 200, 100, 210, 10) + lift(100, 210), "None"},
     {"swipe down", drag(200, 80, 210, 330, 10), "SwipeDown"},
     {"swipe up", drag(200, 330, 190, 80, 10), "SwipeUp"},
     {"short vertical drag is not a swipe", drag(200, 200, 205, 240, 5), "None"},
     {"diagonal drag", drag(100, 100, 300, 250, 10), "None"},
-    {"hold 800ms (too long for tap, too short for long)", hold(40, 200, 200) + lift(200, 200), "None"},
-    {"drag then hold still (no long press)", drag(100, 200, 300, 200, 10) + hold(60, 300, 200), "None"},
+    {"hold 800ms (a hold, not a long press)", hold(40, 200, 200) + lift(200, 200), "Hold"},
+    {"hold 1.2 s, no long press", hold(60, 200, 200) + lift(200, 200), "Hold"},
+    {"drag then hold still (no hold)", drag(100, 200, 300, 200, 10) + hold(60, 300, 200), "None"},
     {"intermittent reports while held", sparse(6, 200, 200, 3) + lift(200, 200), "Tap"},
     {"two taps far apart", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(40, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,Tap"},
     {"double tap", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,DoubleTap"},
-    {"tap then hold", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(40, 200, 200) + lift(200, 200), "Tap,TapHold"},
-    {"tap, long pause, then hold is a long press", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(40, {false,false,0,0}) + hold(60, 200, 200) + lift(200, 200), "Tap,LongPress"},
+    {"tap then hold is just a tap and a hold", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(40, 200, 200) + lift(200, 200), "Tap,Hold"},
     {"triple tap", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,DoubleTap,Tap"},
   };
   int fails = 0;

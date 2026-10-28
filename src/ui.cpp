@@ -251,7 +251,7 @@ void updateSettings() {
   }
   const uint32_t left = webconfig_secondsLeft();
   char buf[40];
-  snprintf(buf, sizeof buf, "%u:%02u left - hold to stop", (unsigned)(left / 60), (unsigned)(left % 60));
+  snprintf(buf, sizeof buf, "%u:%02u left - hold 2s to stop", (unsigned)(left / 60), (unsigned)(left % 60));
   setText(p.caption, "JOIN THIS NETWORK");
   setText(p.headline, webconfig_ssid());
   setText(p.caption2, "PASSWORD");
@@ -295,6 +295,33 @@ void showPage(uint8_t p, bool remember = false) {
   prefs.end();
 }
 
+// Peaks outlive a reboot (the power goes with the ignition, so they are saved as
+// they grow, at most once a minute). The battery low is not kept: cranking
+// sets it on every start. A bad blob just means no peaks yet.
+constexpr uint32_t PEAK_SAVE_MS = 60000;
+bool peaksDirty = false;
+uint32_t peaksSavedAt = 0;
+
+void loadPeaks() {
+  float saved[PAGE_COUNT];
+  Preferences prefs;
+  prefs.begin("gauge", true);
+  const size_t n = prefs.getBytes("peaks", saved, sizeof saved);
+  prefs.end();
+  if (n != sizeof saved) return;
+  for (uint8_t i = 0; i < PAGE_COUNT; i++)
+    if (gauges[i].cfg->track > 0 && isfinite(saved[i])) extreme[i] = saved[i];
+}
+
+void savePeaks() {
+  Preferences prefs;
+  prefs.begin("gauge", false);
+  prefs.putBytes("peaks", extreme, sizeof extreme);
+  prefs.end();
+  peaksDirty = false;
+  peaksSavedAt = millis();
+}
+
 }  // namespace
 
 void ui_init() {
@@ -305,6 +332,7 @@ void ui_init() {
   gauges[PAGE_OIL] = makeGauge(OIL);
   gauges[PAGE_INTAKE] = makeGauge(INTAKE);
   gauges[PAGE_VOLTS] = makeGauge(VOLTS);
+  loadPeaks();
   makeSettings();
   for (uint8_t i = 0; i < PAGE_COUNT; i++) addPageDots(gauges[i].screen, i, PAGE_COUNT);
 
@@ -399,8 +427,12 @@ void ui_update(const Telemetry &t) {
     // Battery voltage is read by the adapter itself, so it counts without the engine answering.
     if (!gauges[i].cfg->track || !(live || i == PAGE_VOLTS) || !reading(i, t, v)) continue;
     const int8_t dir = gauges[i].cfg->track;
-    if (isnan(extreme[i]) || (dir > 0 ? v > extreme[i] : v < extreme[i])) extreme[i] = v;
+    if (isnan(extreme[i]) || (dir > 0 ? v > extreme[i] : v < extreme[i])) {
+      extreme[i] = v;
+      if (t.state == ObdState::Live && dir > 0) peaksDirty = true;
+    }
   }
+  if (peaksDirty && millis() - peaksSavedAt >= PEAK_SAVE_MS) savePeaks();
   moveExtremeNeedles();
 
   if (page == PAGE_SETTINGS) {
@@ -469,14 +501,13 @@ void ui_brightness(int dir) {
   toastUntil = millis() + 3000;
 }
 
-// A tap, then a press held on a gauge that tracks a peak or low: the first tap
-// already moved on, so go back, and start that reading over.
-void ui_tapHold() {
+// A press held on a gauge that tracks a peak or low starts that reading over.
+void ui_hold() {
   if (page == PAGE_SETTINGS) return;
-  showPage(cameFrom);
   const int8_t dir = gauges[page].cfg->track;
   if (!dir) return;
   extreme[page] = NAN;
+  if (dir > 0) savePeaks();
   toastText = dir > 0 ? "Peak reset" : "Low reset";
   toastColor = WHITE;
   toastUntil = millis() + 3000;

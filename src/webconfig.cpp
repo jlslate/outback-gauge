@@ -86,7 +86,7 @@ void handleReboot() {
 void handleStop() {
   server.send(200, "text/html",
               F("<!doctype html><meta charset=utf-8><body style='background:#111;color:#eee;"
-                "font:16px system-ui;padding:2rem'>Wi-Fi off. Press and hold on the gauge's "
+                "font:16px system-ui;padding:2rem'>Wi-Fi off. Press and hold for 2 seconds on the gauge's "
                 "settings page to bring it back.</body>"));
   delay(200);
   stopRequested = true;
