@@ -76,6 +76,10 @@ String render(const Settings &s, const char *note) {
          ".lim em{min-width:1.6rem;text-align:left;white-space:nowrap}"
          "td input[type=number]{width:4.2rem}"
          ".none{color:#555}"
+         "td.mv{touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}"
+         ".ar{display:inline-flex;gap:.2rem;margin-left:.4rem;vertical-align:middle}"
+         "button.mb{width:auto;margin:0;padding:.15rem .4rem;font-size:.7rem;background:#1c1c1c;color:#aaa;border:1px solid #333;font-weight:400}"
+         "tr.drag td{background:#2a2a2a}"
          "td input:disabled{opacity:.25}"
          "button.ghost.arm{background:#7a2c2c;color:#fff;border-color:#a33}"
          "#toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);padding:.7rem 1.3rem;"
@@ -99,11 +103,15 @@ String render(const Settings &s, const char *note) {
   }
 
   o += F("<form method=POST action=/save data-toast=\"Saved\"><h2>Gauges</h2><table>"
-         "<tr><th>Gauge<th>Warns at<th>Show<th>Start on</tr>");
-  for (int i = 0; i < GAUGE_PAGES; i++) {
-    o += "<tr data-g><td>";
+         "<tr><th>Gauge (drag to reorder)<th>Warns at<th>Show<th>Start on</tr>");
+  for (int pos = 0; pos < GAUGE_PAGES; pos++) {
+    const int i = s.order[pos];
+    o += "<tr data-g><td class=mv><input type=hidden name=o value=";
+    o += String(i);
+    o += "><span class=nm>";
     o += PAGE_NAMES[i];
-    o += "<td>";
+    o += "</span><span class=ar><button type=button class=mb data-d=-1>&#9650;</button>"
+         "<button type=button class=mb data-d=1>&#9660;</button></span><td>";
     switch (i) {
       case 0: limit(o, "boost", "min=0 max=20 step=0.5", s.boostWarnPsi, 1, "psi"); break;
       case 2: limit(o, "cool", "min=150 max=260 step=1", s.coolantWarnF, 0, "&deg;F"); break;
@@ -173,6 +181,18 @@ String render(const Settings &s, const char *note) {
          ".then(function(h){var y=scrollY;document.body.innerHTML=new DOMParser().parseFromString(h,'text/html').body.innerHTML;"
          "var n=document.querySelector('.note');if(n)n.remove();sync();scrollTo(0,y);toast(t)})"
          ".catch(function(){toast('Could not reach the gauge',1)})});"
+         "function rows(){return Array.prototype.slice.call(document.querySelectorAll('tr[data-g]'))}"
+         "document.addEventListener('click',function(e){var b=e.target.closest('button.mb');if(!b)return;"
+         "var r=b.closest('tr'),all=rows(),i=all.indexOf(r),d=+b.getAttribute('data-d'),o=all[i+d];if(!o)return;"
+         "if(d<0)o.parentNode.insertBefore(r,o);else o.parentNode.insertBefore(o,r)});"
+         "var dragRow=null;"
+         "document.addEventListener('pointerdown',function(e){var h=e.target.closest('td.mv');if(!h||e.target.closest('button'))return;"
+         "dragRow=h.parentNode;dragRow.className='drag';h.setPointerCapture(e.pointerId)});"
+         "document.addEventListener('pointermove',function(e){if(!dragRow)return;var all=rows(),i=all.indexOf(dragRow),p=all[i-1],n=all[i+1];"
+         "if(p){var a=p.getBoundingClientRect();if(e.clientY<a.top+a.height/2)p.parentNode.insertBefore(dragRow,p)}"
+         "if(n){var c=n.getBoundingClientRect();if(e.clientY>c.top+c.height/2)n.parentNode.insertBefore(n,dragRow)}});"
+         "function drop(){if(dragRow){dragRow.className='';dragRow=null}}"
+         "document.addEventListener('pointerup',drop);document.addEventListener('pointercancel',drop);"
          "sync();</script></body></html>");
   return o;
 }

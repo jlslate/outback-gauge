@@ -46,7 +46,7 @@ const GaugeCfg COOLANT = {"COOLANT", DEG "F", "%.0f", 100, 260, 1, 17, 2, {{100,
 const GaugeCfg OIL = {"OIL\nTEMP", DEG "F", "%.0f", 100, 300, 1, 21, 5, {{100, 140, BLUE}, {0, 300, RED, &Settings::oilWarnF}}, Focus::Oil, TEXT_PINK, 1};
 const GaugeCfg INTAKE = {"INTAKE\nAIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 200, RED, &Settings::intakeWarnF}, {}}, Focus::Intake, TEXT_YELLOW, 1};
 const GaugeCfg SPEED = {"SPEED", "mph", "%.0f", 0, 160, 1, 17, 2, {{0, 160, RED, &Settings::speedWarnMph}, {}}, Focus::Speed, TEXT_TEAL, 1};
-const GaugeCfg TACH = {"RPM", "rpm", "%.0f", 0, 7000, 1, 15, 2, {{0, 7000, RED, &Settings::rpmWarn}, {}}, Focus::Rpm, TEXT_LIME, 1};
+const GaugeCfg TACH = {"TACH", "rpm", "%.0f", 0, 7000, 1, 15, 2, {{0, 7000, RED, &Settings::rpmWarn}, {}}, Focus::Rpm, TEXT_LIME, 1};
 const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts, TEXT_GREEN, -1};
 
 struct Gauge {
@@ -55,6 +55,7 @@ struct Gauge {
   lv_meter_indicator_t *needle = nullptr, *peakNeedle = nullptr;   // peakNeedle: the highest (or lowest) reading, where cfg->track asks for one
   lv_meter_indicator_t *arcs[2] = {nullptr, nullptr};
   int32_t needleAt = INT32_MIN, peakAt = INT32_MIN;
+  lv_obj_t *dots[GAUGE_PAGES] = {};
 };
 
 struct SettingsPage {
@@ -102,15 +103,14 @@ void setColor(lv_obj_t *l, uint32_t color) {
   lv_obj_set_style_text_color(l, lv_color_hex(color), 0);
 }
 
-// Row of dots along the bottom edge showing which page this is.
-void addPageDots(lv_obj_t *screen, uint8_t index, uint8_t count) {
+// Row of dots along the bottom edge; updateDots lights the one for this page's place in the order.
+void addPageDots(lv_obj_t *screen, lv_obj_t **dots, uint8_t count) {
   for (uint8_t i = 0; i < count; i++) {
-    lv_obj_t *dot = lv_obj_create(screen);
+    lv_obj_t *dot = dots[i] = lv_obj_create(screen);
     lv_obj_remove_style_all(dot);
     lv_obj_set_size(dot, 8, 8);
     lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(dot, lv_color_hex(i == index ? WHITE : 0x424242), 0);
     lv_obj_align(dot, LV_ALIGN_CENTER, (i - (count - 1) / 2.0f) * 16, 190);
   }
 }
@@ -276,10 +276,31 @@ bool shown(uint8_t p) {
 
 // The first page at or after `from` that is switched on, going round; PAGE_BOOST
 // if the mask somehow has none.
-uint8_t visibleFrom(uint8_t from) {
+// Order is the chosen one from the settings page, not the page numbers.
+uint8_t positionOf(uint8_t p) {
   for (uint8_t i = 0; i < PAGE_COUNT; i++)
-    if (shown((from + i) % PAGE_COUNT)) return (from + i) % PAGE_COUNT;
+    if (settings().order[i] == p) return i;
+  return 0;
+}
+
+uint8_t visibleFrom(uint8_t from) {
+  const uint8_t start = positionOf(from);
+  for (uint8_t i = 0; i < PAGE_COUNT; i++) {
+    const uint8_t p = settings().order[(start + i) % PAGE_COUNT];
+    if (shown(p)) return p;
+  }
   return PAGE_BOOST;
+}
+
+void updateDots() {
+  for (uint8_t g = 0; g < PAGE_COUNT; g++)
+    for (uint8_t i = 0; i < PAGE_COUNT; i++)
+      lv_obj_set_style_bg_color(gauges[g].dots[i], lv_color_hex(i == positionOf(g) ? WHITE : 0x424242), 0);
+}
+
+// The next gauge after p in the chosen order that is switched on.
+uint8_t nextShown(uint8_t p) {
+  return visibleFrom(settings().order[(positionOf(p) + 1) % PAGE_COUNT]);
 }
 
 // `remember` is for a page the person chose by tapping. The rotation and a
@@ -339,7 +360,8 @@ void ui_init() {
   gauges[PAGE_TACH] = makeGauge(TACH);
   loadPeaks();
   makeSettings();
-  for (uint8_t i = 0; i < PAGE_COUNT; i++) addPageDots(gauges[i].screen, i, PAGE_COUNT);
+  for (uint8_t i = 0; i < PAGE_COUNT; i++) addPageDots(gauges[i].screen, gauges[i].dots, PAGE_COUNT);
+  updateDots();
 
   uint8_t start = settings().startPage;
   if (start == START_LAST) {
@@ -429,7 +451,7 @@ void ui_update(const Telemetry &t) {
   // Wi-Fi went off by itself (web page button or idle timeout): back to the gauges.
   if (page == PAGE_SETTINGS && !webconfig_active()) showPage(returnPage);
   const bool alarmed = checkAlarms(t, s);
-  if (s.autoRotate && !alarmed && page != PAGE_SETTINGS && millis() - shownAt >= (uint32_t)(s.autoRotateSecs * 1000)) showPage(visibleFrom((page + 1) % PAGE_COUNT));
+  if (s.autoRotate && !alarmed && page != PAGE_SETTINGS && millis() - shownAt >= (uint32_t)(s.autoRotateSecs * 1000)) showPage(nextShown(page));
   const bool live = t.state == ObdState::Live || t.state == ObdState::Simulated;
   for (uint8_t i = 0; i < PAGE_COUNT; i++) {
     float v;
@@ -466,13 +488,14 @@ void ui_update(const Telemetry &t) {
 
 void ui_applySettings() {
   for (uint8_t i = 0; i < PAGE_COUNT; i++) applyBands(gauges[i]);
+  updateDots();
   if (page != PAGE_SETTINGS && !shown(page)) showPage(visibleFrom(page));   // the page on screen was just switched off
 }
 
 void ui_nextPage() {
   if (page == PAGE_SETTINGS) return;
   cameFrom = page;
-  showPage(visibleFrom((page + 1) % PAGE_COUNT), true);
+  showPage(nextShown(page), true);
 }
 
 // Two quick taps: the first already moved on a page, so go back to where it

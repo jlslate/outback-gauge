@@ -26,7 +26,7 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 // Which gauge the screen comes up on at power-up (0 boost, 1 engine load, 2 coolant,
 // 3 oil temperature, 4 intake air, 5 battery, 6 speed, 7 rpm; 255 = the last one you tapped to),
 // and which gauges are shown at all (one bit each, in that order; 0xFF is all eight).
-#define START_PAGE 0
+#define START_PAGE 255
 #define PAGE_MASK 0xFF
 
 // Step through the gauges on a timer. A tap still moves on early.

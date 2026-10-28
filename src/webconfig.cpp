@@ -55,6 +55,12 @@ void handleSave() {
   s.autoRotate = server.hasArg("auto");
   s.autoRotateSecs = argFloat("secs", s.autoRotateSecs);
   s.startPage = (uint8_t)argFloat("start", s.startPage);
+  // The rows come back in the order they were left in, each carrying its gauge number.
+  uint8_t order[GAUGE_PAGES];
+  int placed = 0;
+  for (int i = 0; i < server.args() && placed < GAUGE_PAGES; i++)
+    if (server.argName(i) == "o") order[placed++] = (uint8_t)server.arg(i).toInt();
+  if (placed == GAUGE_PAGES) memcpy(s.order, order, sizeof order);   // anything else is rejected by settings_clean
   s.pageMask = 0;
   for (int i = 0; i < GAUGE_PAGES; i++) {
     char name[8];

@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "config.h"
+#include "webconfig.h"
 
 #ifndef OBD_SIMULATE
 #define OBD_SIMULATE 0
@@ -115,6 +116,12 @@ bool isStandardService(BLEUUID uuid) {
 }
 
 bool scanFor(BLEAdvertisedDevice &out) {
+  // A scan this aggressive leaves the radio almost no time for Wi-Fi, and the
+  // access point's join handshake times out. No adapter is needed to change settings.
+  if (webconfig_active()) {
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    return false;
+  }
   BLEScan *scan = BLEDevice::getScan();
   scan->setActiveScan(true);
   scan->setInterval(100);
