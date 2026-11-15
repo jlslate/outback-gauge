@@ -564,7 +564,7 @@ void ui_init() {
 // The clinometer only counts as warning once it has stayed past a limit for a
 // moment: picking the gauge up, or a hard corner, swings it past 25 degrees for
 // an instant and shouldn't pull the screen over.
-static constexpr uint32_t TILT_WARN_MS = 1500;
+static constexpr uint32_t TILT_WARN_MS = 500;
 static bool tiltWarning = false;
 static uint32_t tiltOverSince = 0;
 
