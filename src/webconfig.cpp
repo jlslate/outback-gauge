@@ -3,10 +3,12 @@
 #include <Arduino.h>
 #include <DNSServer.h>
 #include <esp_mac.h>
+#include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
 
 #include "config.h"
+#include "imu.h"
 #include "settings.h"
 #include "webpage.h"
 
@@ -51,9 +53,12 @@ void handleSave() {
   s.speedWarnMph = argFloat("speed", s.speedWarnMph);
   s.rpmWarn = argFloat("rpm", s.rpmWarn);
   s.fuelWarnPct = argFloat("fuel", s.fuelWarnPct);
+  s.rollWarnDeg = argFloat("roll", s.rollWarnDeg);
+  s.pitchWarnDeg = argFloat("pitch", s.pitchWarnDeg);
   s.backlight = (uint8_t)argFloat("bl", s.backlight);
   // Unchecked boxes aren't posted at all, so presence is the value.
   s.autoRotate = server.hasArg("auto");
+  s.warnHidden = server.hasArg("warnhidden");
   s.autoRotateSecs = argFloat("secs", s.autoRotateSecs);
   s.startPage = (uint8_t)argFloat("start", s.startPage);
   // The rows come back in the order they were left in, each carrying its gauge number.
@@ -81,6 +86,60 @@ void handleDefaults() {
   const Settings s = settings_defaults();
   settings_stage(s);
   server.send(200, "text/html", webpage_render(s, "Restored the built-in defaults."));
+}
+
+// Takes the attitude the car is in right now as level.
+void handleLevel() {
+  keepAlive();
+  imu_requestLevel();
+  server.send(200, "text/html", webpage_render(settings(), nullptr));
+}
+
+// Firmware upload: the image streams straight into the next app slot, and the
+// gauge restarts onto it only once the whole file has been written and checked.
+// A file that isn't a firmware image for this chip is refused before anything
+// switches over, so the running firmware stays in place.
+String otaError;
+uint32_t otaBytes = 0;
+
+void handleUpdateChunk() {
+  HTTPUpload &up = server.upload();
+  keepAlive();
+  switch (up.status) {
+    case UPLOAD_FILE_START:
+      otaError = "";
+      otaBytes = 0;
+      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) otaError = Update.errorString();
+      Serial.printf("[OTA] receiving %s\n", up.filename.c_str());
+      break;
+    case UPLOAD_FILE_WRITE:
+      if (otaError.isEmpty() && Update.write(up.buf, up.currentSize) != up.currentSize) otaError = Update.errorString();
+      otaBytes += up.currentSize;
+      break;
+    case UPLOAD_FILE_END:
+      if (otaError.isEmpty() && !Update.end(true)) otaError = Update.errorString();
+      break;
+    case UPLOAD_FILE_ABORTED:
+      Update.abort();
+      otaError = "The upload was interrupted";
+      break;
+  }
+}
+
+void handleUpdate() {
+  static const char head[] = "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+                             "<body style='background:#111;color:#eee;font:16px system-ui;padding:2rem'>";
+  if (otaBytes == 0 && otaError.isEmpty()) otaError = "No file was received";
+  if (!otaError.isEmpty()) {
+    Serial.printf("[OTA] failed: %s\n", otaError.c_str());
+    server.send(500, "text/html", String(head) + "Update failed: " + otaError + ". The gauge is still running the old firmware.</body>");
+    return;
+  }
+  Serial.printf("[OTA] installed %u bytes, restarting\n", (unsigned)otaBytes);
+  server.send(200, "text/html", String(head) + "Update installed. The gauge is restarting and the Wi-Fi network will disappear; "
+                                               "start it again from the gauge to check the version.</body>");
+  delay(500);
+  ESP.restart();
 }
 
 void handleReboot() {
@@ -116,6 +175,8 @@ void task(void *) {
     server.on("/", handleRoot);
     server.on("/save", HTTP_POST, handleSave);
     server.on("/defaults", HTTP_POST, handleDefaults);
+    server.on("/level", HTTP_POST, handleLevel);
+    server.on("/update", HTTP_POST, handleUpdate, handleUpdateChunk);
     server.on("/reboot", HTTP_POST, handleReboot);
     server.on("/stop", HTTP_POST, handleStop);
     server.onNotFound(handleNotFound);
@@ -174,7 +235,7 @@ void webconfig_start() {
   // anything else here, and sharing the loop stack with it is what corrupted
   // the display in sensecap-camera-viewer. It also keeps the UI at 50 Hz while
   // a page loads.
-  if (xTaskCreatePinnedToCore(task, "webcfg", 10240, nullptr, 1, &taskHandle, 1) != pdPASS) {
+  if (xTaskCreatePinnedToCore(task, "webcfg", 12288, nullptr, 1, &taskHandle, 1) != pdPASS) {
     Serial.println("[WEB] could not start the server task");
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_OFF);

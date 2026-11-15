@@ -1,5 +1,7 @@
 #include "webpage.h"
 
+#include "fw_version.h"
+
 namespace {
 
 void num(String &o, const char *id, const char *label, const char *attrs, float v, int dp, const char *unit) {
@@ -42,7 +44,7 @@ void check(String &o, const char *id, const char *label, bool on) {
 }
 
 // In the order of the pages in ui.cpp.
-const char *const PAGE_NAMES[GAUGE_PAGES] = {"Boost", "Engine load", "Coolant", "Oil temperature", "Intake air", "Battery", "Speed", "Tachometer", "Fuel"};
+const char *const PAGE_NAMES[GAUGE_PAGES] = {"Boost", "Engine load", "Coolant", "Oil temperature", "Intake air", "Battery", "Speed", "Tachometer", "Fuel", "Clinometer"};
 
 String render(const Settings &s, const char *note) {
   String o;
@@ -64,6 +66,7 @@ String render(const Settings &s, const char *note) {
          "input[type=number]{width:5.5rem;padding:.5rem;background:#1c1c1c;border:1px solid #333;"
          "border-radius:6px;color:#fff;font-size:1rem;text-align:right}"
          "select{padding:.5rem;background:#1c1c1c;border:1px solid #333;border-radius:6px;color:#fff;font-size:1rem}"
+         "input[type=file]{width:100%;margin-top:.8rem;color:#ccc}"
          "input[type=range]{flex:1;accent-color:#FF6D00}"
          "table{width:100%;border-collapse:collapse;margin-top:.3rem}"
          "th{font-size:.7rem;font-weight:400;text-transform:uppercase;letter-spacing:.06em;color:#888;"
@@ -104,6 +107,10 @@ String render(const Settings &s, const char *note) {
 
   o += F("<form method=POST action=/save data-toast=\"Saved\"><h2>Gauges</h2><table>"
          "<tr><th>Gauge (drag to reorder)<th>Warns at<th>Show<th>Start on</tr>");
+  o += F("<tr><td colspan=3>The last one I tapped to<td><input type=radio name=start value=");
+  o += String((int)START_LAST);
+  o += s.startPage == START_LAST ? F(" checked>") : F(">");
+  o += F("</tr>");
   for (int pos = 0; pos < GAUGE_PAGES; pos++) {
     const int i = s.order[pos];
     o += "<tr data-g><td class=mv><input type=hidden name=o value=";
@@ -124,6 +131,10 @@ String render(const Settings &s, const char *note) {
       case 6: limit(o, "speed", "min=20 max=160 step=1", s.speedWarnMph, 0, "mph"); break;
       case 7: limit(o, "rpm", "min=3000 max=7000 step=100", s.rpmWarn, 0, "rpm"); break;
       case 8: limit(o, "fuel", "min=5 max=50 step=1", s.fuelWarnPct, 0, "% low"); break;
+      case 9:
+        limit(o, "roll", "min=5 max=45 step=1", s.rollWarnDeg, 0, "&deg; roll");
+        limit(o, "pitch", "min=5 max=45 step=1", s.pitchWarnDeg, 0, "&deg; pitch");
+        break;
       default: o += "<span class=none>none</span>";
     }
     o += "<td><input type=checkbox name=pg";
@@ -134,12 +145,9 @@ String render(const Settings &s, const char *note) {
     o += s.startPage == i ? " checked>" : ">";
     o += "</tr>";
   }
-  o += F("<tr><td colspan=3>The last one I tapped to<td><input type=radio name=start value=");
-  o += String((int)START_LAST);
-  o += s.startPage == START_LAST ? F(" checked>") : F(">");
-  o += F("</tr></table>"
-         "<p class=warn>Unticked gauges are never shown, not even for a warning. "
-         "The start gauge falls back to the first one shown if you hide it.</p>");
+  o += F("</table>"
+         "<p class=warn>The start gauge falls back to the first one shown if you hide it.</p>");
+  check(o, "warnhidden", "Show a hidden gauge when it warns", s.warnHidden);
 
   o += F("<h2>Rotation</h2>");
   check(o, "auto", "Cycle through the gauges", s.autoRotate);
@@ -154,13 +162,21 @@ String render(const Settings &s, const char *note) {
   o += F("%</em></label>");
 
   o += F("<button>Save</button></form>"
+         "<form method=POST action=/level data-toast=\"Level set\" data-ask=\"Tap again to set level\" "
+         "data-confirm=\"Is the car parked on level ground? That becomes zero for the clinometer.\">"
+         "<button class=ghost>Set clinometer level</button></form>"
          "<form method=POST action=/defaults data-toast=\"Defaults restored\" data-ask=\"Tap again to restore defaults\" data-confirm=\"Put every setting back to its default?\">"
          "<button class=ghost>Restore defaults</button></form>"
          "<form method=POST action=/reboot data-ask=\"Tap again to reboot\" data-confirm=\"Reboot the gauge? The Wi-Fi drops, so hold the screen for 2 seconds to bring it back.\">"
          "<button class=ghost>Reboot the gauge</button></form>"
          "<form method=POST action=/stop data-ask=\"Tap again to turn Wi-Fi off\" data-confirm=\"Turn Wi-Fi off? Hold the screen to bring it back.\">"
          "<button class=ghost>Turn Wi-Fi off</button></form>"
-         "</main><div id=toast></div><script>"
+         "<h2>Firmware</h2><form method=POST action=/update enctype=multipart/form-data "
+         "data-ask=\"Tap again to install\" data-confirm=\"Install this firmware? The gauge restarts when it finishes, which takes about a minute. Keep the car powered.\">"
+         "<input type=file name=fw accept=\".bin\" required><button class=ghost>Update firmware</button></form>"
+         "<p class=warn>Build: ");
+  o += FW_VERSION;
+  o += F("</p></main><div id=toast></div><script>"
          "function sync(){var rows=document.querySelectorAll('tr[data-g]'),on=0,pick=null;"
          "rows.forEach(function(r){var c=r.querySelector('input[type=checkbox]'),d=r.querySelector('input[type=radio]');"
          "d.disabled=!c.checked;if(c.checked){on++;if(!pick)pick=d}"

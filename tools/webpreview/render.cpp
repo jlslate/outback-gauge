@@ -3,8 +3,11 @@
 
 #include <stdio.h>
 
+#include "fw_version.h"
 #include "settings.h"
 #include "webpage.h"
+
+const char *const FW_VERSION = "preview";
 
 int main() {
   settings_load();  // the shim has nothing saved, so this is the factory state

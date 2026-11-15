@@ -24,10 +24,16 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 #define DISPLAY_MOUNT_DEG 90
 
 // Which gauge the screen comes up on at power-up (0 boost, 1 engine load, 2 coolant,
-// 3 oil temperature, 4 intake air, 5 battery, 6 speed, 7 rpm, 8 fuel; 255 = the last one you tapped to),
-// and which gauges are shown at all (one bit each, in that order; 0x1FF is all nine).
+// 3 oil temperature, 4 intake air, 5 battery, 6 speed, 7 rpm, 8 fuel, 9 clinometer; 255 = the last one you tapped to),
+// and which gauges are shown at all (one bit each, in that order; 0x3FF is all ten).
 #define START_PAGE 255
-#define PAGE_MASK 0x1FF
+#define PAGE_MASK 0x3FF
+
+// Clinometer. The pod is turned this many degrees toward the driver (left-hand
+// drive), and the chip's z axis points out of the screen (-1 if it points in).
+// Flip TILT_Z_OUT_OF_SCREEN if the roll and pitch come out swapped or backwards.
+#define TILT_YAW_DEG 30.0f
+#define TILT_Z_OUT_OF_SCREEN 1
 
 // Step through the gauges on a timer. A tap still moves on early.
 #define AUTO_ROTATE 1
@@ -43,6 +49,11 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 #define SPEED_WARN_MPH 85.0f
 #define RPM_WARN 6000.0f
 #define FUEL_WARN_PCT 10.0f
+#define ROLL_WARN_DEG 25.0f
+#define PITCH_WARN_DEG 25.0f
+
+// Whether a gauge that is hidden on the settings page still comes up when it warns.
+#define WARN_HIDDEN 0
 
 // Settings access point. Compile-time only: it has to be reachable before you
 // can change anything. How long it stays up with no requests before shutting

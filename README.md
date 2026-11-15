@@ -24,7 +24,7 @@ reading since the last reset, and battery one at the lowest (the status line
 says "PEAK" or "LOW" with the number). **Press and hold** (about half a second) on one of
 those gauges to start it over. Boost, oil, intake, speed and rpm peaks survive a reboot (saved at most once a minute while driving); the battery low starts over each time, since cranking sets it. **Swipe up or down** for a brighter or dimmer screen (5, 20, 40, 60, 80 or 100%). The dots along the bottom show where you are. The Wi-Fi page chooses which
 gauge the screen starts on (or "the last one I tapped to") and which gauges are
-shown at all, and the order they come in: drag a row by its name (or use its arrows) and save. The BOOT button does the same from the bench — a
+shown at all (a hidden gauge can still come up when it warns, if you tick that option), and the order they come in: drag a row by its name (or use its arrows) and save. The BOOT button does the same from the bench — a
 short press moves to the next page, holding it opens Wi-Fi — but
 it has no hole in the case: it sits under one of the magnet pads. Everything
 it does is also a touch gesture.
@@ -113,6 +113,22 @@ flashing. Run `pio run` once first so LVGL is downloaded.
 `tools/webpreview/build.sh` does the same for the settings form: it compiles the
 real `src/webpage.cpp` and writes `docs/settings-page.html` to open in a browser.
 Needs no LVGL and no board.
+
+## Update the firmware over Wi-Fi
+
+Once a build with the update page is on the gauge, a new one doesn't need USB:
+
+```bash
+~/.platformio/penv/bin/pio run -e outback_gauge && tools/ota/export.sh
+```
+
+That copies the image to `dist/outback-gauge-<date>.bin`. Get it onto the phone
+(AirDrop, iCloud Drive), join the gauge's Wi-Fi, and under **Firmware** at the
+bottom of the settings page choose the file and tap twice on **Update firmware**.
+The gauge restarts onto the new build; the page's "Build:" line says which one is
+running. A file that isn't a firmware image for this chip is refused and the
+running firmware is left alone. An image that loads but then crashes at start-up
+is not rolled back, so that one needs USB.
 
 ## Test gesture detection on a Mac
 

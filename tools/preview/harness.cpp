@@ -4,6 +4,7 @@
 #include <lvgl.h>
 #include "ui.h"
 #include "obd.h"
+#include "imu.h"
 #include "settings.h"
 #include "webconfig.h"
 #include <vector>
@@ -11,6 +12,8 @@
 static uint32_t now_ms = 10000;
 extern "C" uint32_t millis() { return now_ms; }
 void obd_setFocus(Focus) {}
+static Tilt fakeTilt;
+Tilt imu_tilt() { return fakeTilt; }
 
 // No radio here; the settings page just needs something to lay out.
 static bool apUp = false;
@@ -67,16 +70,20 @@ int main() {
   t.boostPsi = 12.4f; t.loadPct = 64; t.coolantF = 203; t.oilF = 221; t.intakeF = 97; t.volts = 14.2f;
   t.loadAt = t.coolantAt = t.oilAt = t.intakeAt = t.voltsAt = s;
 
-  for (int page = 0; page < 9; page++) {
+  fakeTilt.ok = fakeTilt.calibrated = true;
+  fakeTilt.roll = 14; fakeTilt.pitch = 9; ui_update(t);          // the maximums
+  fakeTilt.roll = -11; fakeTilt.pitch = -6; ui_update(t);
+  fakeTilt.roll = 4; fakeTilt.pitch = 2;
+  for (int page = 0; page < 10; page++) {
     ui_update(t); capture(page); ui_nextPage();
   }
   // Boost page again while still searching for the adapter.
   Telemetry idle; idle.state = ObdState::Scanning;
-  ui_update(idle); capture(9);
+  ui_update(idle); capture(10);
 
   // Settings page with the access point up, which is the crowded layout.
   ui_longPress();
-  ui_update(t); capture(10);
+  ui_update(t); capture(11);
 
   FILE *f = fopen("gauges.ppm", "wb");
   fprintf(f, "P6\n%d %d\n255\n", W, H); fwrite(sheet.data(), 1, sheet.size(), f); fclose(f);

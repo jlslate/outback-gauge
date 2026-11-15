@@ -3,6 +3,7 @@
 #include "board.h"
 #include "config.h"
 #include "display.h"
+#include "imu.h"
 #include "obd.h"
 #include "settings.h"
 #include "touch.h"
@@ -49,6 +50,7 @@ void setup() {
   board_init();
   display_init();
   touch_init();
+  imu_init();
   ui_init();
   display_refreshNow();  // first frame is drawn before the backlight comes on
   board_setBacklight(settings().backlight);
@@ -56,7 +58,7 @@ void setup() {
 }
 
 void loop() {
-  static uint32_t lastTouch = 0, lastUi = 0, lastBat = 0;
+  static uint32_t lastImu = 0, lastTouch = 0, lastUi = 0, lastBat = 0;
   const uint32_t now = millis();
 
   pollButton();
@@ -65,6 +67,10 @@ void loop() {
   if (settings_apply()) {
     board_setBacklight(settings().backlight);
     ui_applySettings();
+  }
+  if (now - lastImu >= 20) {
+    lastImu = now;
+    imu_update();
   }
   if (now - lastTouch >= 20) {
     lastTouch = now;

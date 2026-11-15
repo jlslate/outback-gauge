@@ -13,7 +13,10 @@
 #include <Arduino.h>
 
 #include "settings.h"
+#include "imu.h"
 #include "webconfig.h"
+
+void imu_requestLevel() {}   // no sensor on the bench build
 
 namespace {
 

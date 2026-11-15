@@ -6,6 +6,7 @@
 
 #include "board.h"
 #include "config.h"
+#include "imu.h"
 #include "settings.h"
 #include "webconfig.h"
 
@@ -48,6 +49,7 @@ const GaugeCfg INTAKE = {"INTAKE\nAIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 
 const GaugeCfg SPEED = {"SPEED", "mph", "%.0f", 0, 160, 1, 17, 2, {{0, 160, RED, &Settings::speedWarnMph}, {}}, Focus::Speed, TEXT_TEAL, 1};
 const GaugeCfg TACH = {"TACH", "rpm", "%.0f", 0, 7000, 1, 15, 2, {{0, 7000, RED, &Settings::rpmWarn}, {}}, Focus::Rpm, TEXT_LIME, 1};
 const GaugeCfg FUEL = {"FUEL", "%", "%.0f", 0, 100, 1, 11, 2, {{0, 0, RED, &Settings::fuelWarnPct, false}, {}}, Focus::Fuel, TEXT_SILVER, 0};
+const GaugeCfg TILTCFG = {"", "", "", 0, 0, 1, 0, 0, {{}, {}}, Focus::None, WHITE, 0};   // placeholder: the page draws itself
 const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts, TEXT_GREEN, -1};
 
 struct Gauge {
@@ -59,13 +61,24 @@ struct Gauge {
   lv_obj_t *dots[GAUGE_PAGES] = {};
 };
 
+// The clinometer isn't a dial, so it has a page of its own; it still takes a
+// slot in gauges[] (screen, dots, cfg) so paging treats it like the rest.
+struct TiltPage {
+  lv_obj_t *horizon, *maxUp, *maxDown, *maxLeft, *maxRight, *roll, *pitch, *rollMax, *pitchMax, *hint;
+  lv_point_t pts[2], upPts[2], downPts[2], leftPts[2], rightPts[2];
+  int shownRoll = INT_MIN, shownPitch = INT_MIN;
+  float maxRollL = 0, maxRollR = 0, maxPitchUp = 0, maxPitchDown = 0;  // degrees, all positive
+  int shownMax = INT_MIN;
+};
+
 struct SettingsPage {
   lv_obj_t *screen, *caption, *headline, *caption2, *detail, *url, *foot;
 };
 
-enum : uint8_t { PAGE_BOOST, PAGE_LOAD, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_SPEED, PAGE_TACH, PAGE_FUEL, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
+enum : uint8_t { PAGE_BOOST, PAGE_LOAD, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_SPEED, PAGE_TACH, PAGE_FUEL, PAGE_TILT, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
 
 Gauge gauges[PAGE_COUNT];
+TiltPage tilt;
 SettingsPage settingsPage;
 uint8_t page = PAGE_BOOST;
 uint32_t shownAt = 0;  // when the current page came up, for auto-rotate
@@ -264,6 +277,135 @@ void updateSettings() {
   setText(p.foot, buf);
 }
 
+// ---- clinometer ------------------------------------------------------------
+
+void thinLine(lv_obj_t *l, int w, uint32_t color) {
+  lv_obj_set_size(l, LCD_SIZE, LCD_SIZE);
+  lv_obj_set_pos(l, 0, 0);
+  lv_obj_set_style_line_width(l, w, 0);
+  lv_obj_set_style_line_color(l, lv_color_hex(color), 0);
+  lv_obj_set_style_line_rounded(l, true, 0);
+}
+
+void makeTilt() {
+  TiltPage &p = tilt;
+  gauges[PAGE_TILT].cfg = &TILTCFG;
+  lv_obj_t *screen = gauges[PAGE_TILT].screen = newScreen();
+
+  p.horizon = lv_line_create(screen);
+  thinLine(p.horizon, 6, 0x29B6F6);
+  // Where the horizon stood at the most nose-up and nose-down: thin lines parallel to it.
+  p.maxUp = lv_line_create(screen);
+  thinLine(p.maxUp, 2, WHITE);
+  p.maxDown = lv_line_create(screen);
+  thinLine(p.maxDown, 2, WHITE);
+  // The furthest lean each way, as marks on the rim (right lean on the right).
+  p.maxLeft = lv_line_create(screen);
+  thinLine(p.maxLeft, 3, WHITE);
+  p.maxRight = lv_line_create(screen);
+  thinLine(p.maxRight, 3, WHITE);
+
+  // Fixed "vehicle" marker the horizon moves against.
+  static lv_point_t marker[] = {{C - 70, C}, {C - 24, C}, {C - 12, C + 12}, {C, C}, {C + 12, C + 12}, {C + 24, C}, {C + 70, C}};
+  lv_obj_t *m = lv_line_create(screen);
+  thinLine(m, 5, AMBER);
+  lv_line_set_points(m, marker, sizeof marker / sizeof marker[0]);
+
+  lv_label_set_text(label(screen, &lv_font_montserrat_14, GREY, -95, 92), "ROLL");
+  lv_label_set_text(label(screen, &lv_font_montserrat_14, GREY, 95, 92), "PITCH");
+  p.roll = label(screen, &lv_font_montserrat_28, WHITE, -95, 118);
+  p.pitch = label(screen, &lv_font_montserrat_28, WHITE, 95, 118);
+  p.rollMax = label(screen, &lv_font_montserrat_14, GREY, -95, 144);
+  p.pitchMax = label(screen, &lv_font_montserrat_14, GREY, 95, 144);
+  p.hint = label(screen, &lv_font_montserrat_14, GREY, 0, -120);
+}
+
+// A line across the screen at `shift` px (positive = lower) from where the
+// horizon would sit at roll 0, turned with the roll; `half` is half its length.
+void horizonLine(lv_point_t *pts, float rollDeg, float shift, float half) {
+  const float a = -rollDeg * DEG_TO_RAD;
+  const float dx = cosf(a), dy = sinf(a);
+  const float cx = C - dy * shift, cy = C + dx * shift;
+  pts[0] = {(lv_coord_t)(cx - dx * half), (lv_coord_t)(cy - dy * half)};
+  pts[1] = {(lv_coord_t)(cx + dx * half), (lv_coord_t)(cy + dy * half)};
+}
+
+// A short mark on the rim, `deg` clockwise from the top.
+void rimMark(lv_point_t *pts, float deg) {
+  const float a = deg * DEG_TO_RAD, s = sinf(a), c = cosf(a);
+  pts[0] = {(lv_coord_t)(C + (C - 8) * s), (lv_coord_t)(C - (C - 8) * c)};
+  pts[1] = {(lv_coord_t)(C + (C - 34) * s), (lv_coord_t)(C - (C - 34) * c)};
+}
+
+// The maxima keep growing whichever page is up.
+void trackTilt(const Tilt &t) {
+  if (!t.ok || !t.calibrated) return;
+  TiltPage &p = tilt;
+  p.maxRollR = max(p.maxRollR, t.roll);
+  p.maxRollL = max(p.maxRollL, -t.roll);
+  p.maxPitchUp = max(p.maxPitchUp, t.pitch);
+  p.maxPitchDown = max(p.maxPitchDown, -t.pitch);
+}
+
+void resetTiltMax() {
+  TiltPage &p = tilt;
+  p.maxRollL = p.maxRollR = p.maxPitchUp = p.maxPitchDown = 0;
+  p.shownRoll = INT_MIN;
+}
+
+void updateTilt(const Tilt &t) {
+  TiltPage &p = tilt;
+  const bool toast = millis() < toastUntil;
+  if (toast) {
+    setText(p.hint, toastText);
+    setColor(p.hint, toastColor);
+  } else {
+    setColor(p.hint, GREY);
+    setText(p.hint, !t.ok ? "Motion sensor not found" : !t.calibrated ? "Park level: set level on the Wi-Fi page" : "");
+  }
+  if (!t.ok || !t.calibrated) {
+    setText(p.roll, "--");
+    setText(p.pitch, "--");
+    setText(p.rollMax, "");
+    setText(p.pitchMax, "");
+    return;
+  }
+
+  const int roll = lroundf(t.roll), pitch = lroundf(t.pitch);
+  const int maxes = lroundf(p.maxRollL) * 1000000 + lroundf(p.maxRollR) * 10000 + lroundf(p.maxPitchUp) * 100 + lroundf(p.maxPitchDown);
+  if (roll == p.shownRoll && pitch == p.shownPitch && maxes == p.shownMax) return;
+  p.shownRoll = roll;
+  p.shownPitch = pitch;
+  p.shownMax = maxes;
+
+  // Attitude-indicator style: the horizon counter-rotates against the body
+  // roll and drops as the nose rises.
+  constexpr float PX_PER_DEG = 4.0f;
+  horizonLine(p.pts, t.roll, constrain(t.pitch, -30.0f, 30.0f) * PX_PER_DEG, 170);
+  lv_line_set_points(p.horizon, p.pts, 2);
+  horizonLine(p.upPts, t.roll, constrain(p.maxPitchUp, 0.0f, 30.0f) * PX_PER_DEG, 55);
+  lv_line_set_points(p.maxUp, p.upPts, 2);
+  horizonLine(p.downPts, t.roll, -constrain(p.maxPitchDown, 0.0f, 30.0f) * PX_PER_DEG, 55);
+  lv_line_set_points(p.maxDown, p.downPts, 2);
+  rimMark(p.leftPts, -p.maxRollL);
+  lv_line_set_points(p.maxLeft, p.leftPts, 2);
+  rimMark(p.rightPts, p.maxRollR);
+  lv_line_set_points(p.maxRight, p.rightPts, 2);
+
+  char buf[24];
+  const Settings &s = settings();
+  snprintf(buf, sizeof buf, "%+d" DEG, roll);
+  setText(p.roll, buf);
+  setColor(p.roll, fabsf(t.roll) >= s.rollWarnDeg ? RED : WHITE);
+  snprintf(buf, sizeof buf, "%+d" DEG, pitch);
+  setText(p.pitch, buf);
+  setColor(p.pitch, fabsf(t.pitch) >= s.pitchWarnDeg ? RED : WHITE);
+  snprintf(buf, sizeof buf, "L %d  R %d", (int)lroundf(p.maxRollL), (int)lroundf(p.maxRollR));
+  setText(p.rollMax, buf);
+  snprintf(buf, sizeof buf, "UP %d  DN %d", (int)lroundf(p.maxPitchUp), (int)lroundf(p.maxPitchDown));
+  setText(p.pitchMax, buf);
+}
+
 // ---- paging ----------------------------------------------------------------
 
 lv_obj_t *screenFor(uint8_t p) {
@@ -360,6 +502,7 @@ void ui_init() {
   gauges[PAGE_SPEED] = makeGauge(SPEED);
   gauges[PAGE_TACH] = makeGauge(TACH);
   gauges[PAGE_FUEL] = makeGauge(FUEL);
+  makeTilt();
   loadPeaks();
   makeSettings();
   for (uint8_t i = 0; i < PAGE_COUNT; i++) addPageDots(gauges[i].screen, gauges[i].dots, PAGE_COUNT);
@@ -386,6 +529,10 @@ static bool warning(uint8_t p, const Telemetry &t, const Settings &s) {
     case PAGE_SPEED: return fresh(t.speedAt) && t.speedMph >= s.speedWarnMph;
     case PAGE_TACH: return fresh(t.rpmAt) && t.rpm >= s.rpmWarn;
     case PAGE_FUEL: return fresh(t.fuelAt) && t.fuelPct < s.fuelWarnPct;
+    case PAGE_TILT: {
+      const Tilt lean = imu_tilt();
+      return lean.ok && lean.calibrated && (fabsf(lean.roll) >= s.rollWarnDeg || fabsf(lean.pitch) >= s.pitchWarnDeg);
+    }
   }
   return false;  // engine load has no warning
 }
@@ -402,10 +549,10 @@ static uint32_t clearSince[PAGE_COUNT];
 static bool checkAlarms(const Telemetry &t, const Settings &s) {
   bool any = false;
   for (uint8_t i = 0; i < PAGE_COUNT; i++) {
-    // A gauge that is switched off stays off, and the first few seconds are
-    // skipped: starting the engine drags the battery down and would pull the
+    // A gauge that is switched off stays off unless the setting lets it
+    // through, and the first few seconds are skipped: starting the engine drags the battery down and would pull the
     // screen to the battery gauge every time.
-    if (shown(i) && millis() > STARTUP_GRACE_MS && warning(i, t, s)) {
+    if ((shown(i) || s.warnHidden) && millis() > STARTUP_GRACE_MS && warning(i, t, s)) {
       clearSince[i] = 0;
       if (!warned[i]) {
         warned[i] = true;
@@ -469,9 +616,15 @@ void ui_update(const Telemetry &t) {
   }
   if (peaksDirty && millis() - peaksSavedAt >= PEAK_SAVE_MS) savePeaks();
   moveExtremeNeedles();
+  const Tilt lean = imu_tilt();
+  trackTilt(lean);
 
   if (page == PAGE_SETTINGS) {
     updateSettings();
+    return;
+  }
+  if (page == PAGE_TILT) {
+    updateTilt(lean);
     return;
   }
 
@@ -493,7 +646,8 @@ void ui_update(const Telemetry &t) {
 void ui_applySettings() {
   for (uint8_t i = 0; i < PAGE_COUNT; i++) applyBands(gauges[i]);
   updateDots();
-  if (page != PAGE_SETTINGS && !shown(page)) showPage(visibleFrom(page));   // the page on screen was just switched off
+  tilt.shownRoll = INT_MIN;   // redraw the clinometer colours at the new limit
+  if (page != PAGE_SETTINGS && !shown(page) && !(settings().warnHidden && warned[page])) showPage(visibleFrom(page));   // the page on screen was just switched off
 }
 
 void ui_nextPage() {
@@ -537,9 +691,17 @@ void ui_brightness(int dir) {
   toastUntil = millis() + 3000;
 }
 
-// A press held on a gauge that tracks a peak or low starts that reading over.
+// A press held on a gauge that tracks a peak or low starts that reading over;
+// on the clinometer it clears the four maximums.
 void ui_hold() {
   if (page == PAGE_SETTINGS) return;
+  if (page == PAGE_TILT) {
+    resetTiltMax();
+    toastText = "Maximums reset";
+    toastColor = WHITE;
+    toastUntil = millis() + 3000;
+    return;
+  }
   const int8_t dir = gauges[page].cfg->track;
   if (!dir) return;
   extreme[page] = NAN;
