@@ -603,6 +603,10 @@ static constexpr uint32_t ALARM_CLEAR_MS = 3000;
 static constexpr uint32_t STARTUP_GRACE_MS = 20000;
 static bool warned[PAGE_COUNT];
 static uint32_t clearSince[PAGE_COUNT];
+// Where the screen was when a warning pulled it away, so it can go back once every
+// warning has cleared (unless you have moved on yourself in the meantime).
+static constexpr uint8_t NO_PAGE = 255;
+static uint8_t pageBeforeWarning = NO_PAGE, warningPage = NO_PAGE;
 
 static bool checkAlarms(const Telemetry &t, const Settings &s) {
   bool any = false;
@@ -614,13 +618,22 @@ static bool checkAlarms(const Telemetry &t, const Settings &s) {
       clearSince[i] = 0;
       if (!warned[i]) {
         warned[i] = true;
-        if (page != PAGE_SETTINGS && page != i) showPage(i);
+        if (page != PAGE_SETTINGS && page != i) {
+          if (pageBeforeWarning == NO_PAGE) pageBeforeWarning = page;
+          warningPage = i;
+          showPage(i);
+        }
       }
     } else if (warned[i]) {
       if (!clearSince[i]) clearSince[i] = millis();
       else if (millis() - clearSince[i] >= ALARM_CLEAR_MS) warned[i] = false;
     }
     any |= warned[i];
+  }
+  if (!any && pageBeforeWarning != NO_PAGE) {
+    // Back to what was on screen before, if the warning page is still the one up.
+    if (page == warningPage) showPage(shown(pageBeforeWarning) ? pageBeforeWarning : visibleFrom(pageBeforeWarning));
+    pageBeforeWarning = warningPage = NO_PAGE;
   }
   return any;
 }
