@@ -8,6 +8,8 @@
 #include "webpage.h"
 
 const char *const FW_VERSION = "preview";
+const char *fw_lastRestart() { return "power on"; }
+extern "C" uint32_t millis() { return 7 * 60000; }
 
 int main() {
   settings_load();  // the shim has nothing saved, so this is the factory state

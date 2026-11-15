@@ -20,6 +20,9 @@ static bool apUp = false;
 void webconfig_start() { apUp = true; }
 void webconfig_stop() { apUp = false; }
 bool webconfig_active() { return apUp; }
+bool webconfig_waitingForClient() { return false; }
+static int fakeUpdate = -1;
+int webconfig_updatePercent() { return fakeUpdate; }
 uint32_t webconfig_secondsLeft() { return 9 * 60 + 47; }
 const char *webconfig_ssid() { return "OutbackGauge"; }
 const char *webconfig_password() { return "gauge4F2A"; }
@@ -34,7 +37,7 @@ static void flush(lv_disp_drv_t *d, const lv_area_t *a, lv_color_t *px) {
 }
 
 static std::vector<uint8_t> sheet;
-static const int COLS = 6, ROWS = 2, GAP = 24, W = COLS * N + (COLS + 1) * GAP, H = ROWS * N + (ROWS + 1) * GAP;
+static const int COLS = 7, ROWS = 2, GAP = 24, W = COLS * N + (COLS + 1) * GAP, H = ROWS * N + (ROWS + 1) * GAP;
 static void capture(int slot) {
   lv_obj_invalidate(lv_scr_act());
   lv_refr_now(nullptr);
@@ -73,7 +76,7 @@ int main() {
   fakeTilt.ok = fakeTilt.calibrated = true;
   fakeTilt.roll = 14; fakeTilt.pitch = 9; ui_update(t);          // the maximums
   fakeTilt.roll = -11; fakeTilt.pitch = -6; ui_update(t);
-  fakeTilt.roll = 4; fakeTilt.pitch = 2;
+  fakeTilt.roll = 12; fakeTilt.pitch = 5;
   for (int page = 0; page < 10; page++) {
     ui_update(t); capture(page); ui_nextPage();
   }
@@ -84,6 +87,9 @@ int main() {
   // Settings page with the access point up, which is the crowded layout.
   ui_longPress();
   ui_update(t); capture(11);
+
+  fakeUpdate = 45; ui_update(t); capture(12);   // a firmware update arriving
+  fakeUpdate = -1; ui_update(t);
 
   FILE *f = fopen("gauges.ppm", "wb");
   fprintf(f, "P6\n%d %d\n255\n", W, H); fwrite(sheet.data(), 1, sheet.size(), f); fclose(f);

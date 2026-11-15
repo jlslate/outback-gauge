@@ -10,7 +10,7 @@ namespace {
 // Stored as one blob rather than a key per field: the whole struct round-trips
 // in two NVS calls, and a version mismatch after a firmware change falls back
 // to defaults instead of leaving half the fields stale. Bump on any layout change.
-constexpr uint16_t LAYOUT = 9;
+constexpr uint16_t LAYOUT = 10;
 
 struct Stored {
   uint16_t layout;
@@ -80,9 +80,27 @@ SettingsV8 v8FromV7(const SettingsV7 &o, uint16_t layout) {
   return s;
 }
 
+// Layout 9, when the clinometer was a single page.
+struct SettingsV9 {
+  uint8_t backlight;
+  float boostWarnPsi, coolantWarnF, oilWarnF, intakeWarnF, voltsLowWarn, voltsHighWarn;
+  bool autoRotate;
+  float autoRotateSecs;
+  uint16_t pageMask;
+  uint8_t startPage;
+  float speedWarnMph, rpmWarn, fuelWarnPct, rollWarnDeg, pitchWarnDeg;
+  bool warnHidden;
+  uint8_t order[10];
+};
+
+struct StoredV9 {
+  uint16_t layout;
+  SettingsV9 s;
+};
+
 // The clinometer is shown and goes last.
-Settings fromV8(const SettingsV8 &o) {
-  Settings s = settings_defaults();
+SettingsV9 v9FromV8(const SettingsV8 &o) {
+  SettingsV9 s{};
   s.backlight = o.backlight;
   s.boostWarnPsi = o.boostWarnPsi, s.coolantWarnF = o.coolantWarnF, s.oilWarnF = o.oilWarnF;
   s.intakeWarnF = o.intakeWarnF, s.voltsLowWarn = o.voltsLowWarn, s.voltsHighWarn = o.voltsHighWarn;
@@ -90,8 +108,24 @@ Settings fromV8(const SettingsV8 &o) {
   s.pageMask = o.pageMask | 0x200;
   s.startPage = o.startPage;
   s.speedWarnMph = o.speedWarnMph, s.rpmWarn = o.rpmWarn, s.fuelWarnPct = o.fuelWarnPct;
+  s.rollWarnDeg = ROLL_WARN_DEG, s.pitchWarnDeg = PITCH_WARN_DEG, s.warnHidden = WARN_HIDDEN;
   memcpy(s.order, o.order, sizeof o.order);
   s.order[9] = 9;
+  return s;
+}
+
+// Layout 9 had the same pages and a shorter order array, so it copies straight across.
+Settings fromV9(const SettingsV9 &o) {
+  Settings s = settings_defaults();
+  s.backlight = o.backlight;
+  s.boostWarnPsi = o.boostWarnPsi, s.coolantWarnF = o.coolantWarnF, s.oilWarnF = o.oilWarnF;
+  s.intakeWarnF = o.intakeWarnF, s.voltsLowWarn = o.voltsLowWarn, s.voltsHighWarn = o.voltsHighWarn;
+  s.autoRotate = o.autoRotate, s.autoRotateSecs = o.autoRotateSecs;
+  s.pageMask = o.pageMask;
+  s.startPage = o.startPage;
+  s.speedWarnMph = o.speedWarnMph, s.rpmWarn = o.rpmWarn, s.fuelWarnPct = o.fuelWarnPct;
+  s.rollWarnDeg = o.rollWarnDeg, s.pitchWarnDeg = o.pitchWarnDeg, s.warnHidden = o.warnHidden;
+  memcpy(s.order, o.order, sizeof o.order);
   return s;
 }
 
@@ -124,7 +158,8 @@ void sanitize(Settings &s) {
   s.rpmWarn = clampf(s.rpmWarn, 3000, 7000);
   bool seen[GAUGE_PAGES] = {};
   bool perm = true;
-  for (uint8_t o : s.order) {
+  for (int i = 0; i < GAUGE_PAGES; i++) {
+    const uint8_t o = s.order[i];
     if (o >= GAUGE_PAGES || seen[o]) perm = false;
     else seen[o] = true;
   }
@@ -162,9 +197,11 @@ Settings settings_defaults() {
   s.rollWarnDeg = ROLL_WARN_DEG;
   s.pitchWarnDeg = PITCH_WARN_DEG;
   s.warnHidden = WARN_HIDDEN;
-  // Alphabetical by the gauge's name: battery, boost, clinometer, coolant, engine load,
-  // fuel, intake air, oil temperature, speed, tach (the numbers are the pages in ui.cpp).
+  // Alphabetical by the gauge's name: battery, boost, clinometer, coolant, engine
+  // load, fuel, intake air, oil temperature, speed, tach (the numbers are the
+  // pages in ui.cpp).
   static const uint8_t alphabetical[GAUGE_PAGES] = {5, 0, 9, 2, 1, 8, 4, 3, 6, 7};
+  memset(s.order, 0, sizeof s.order);
   memcpy(s.order, alphabetical, sizeof alphabetical);
   return s;
 }
@@ -178,7 +215,7 @@ void settings_load() {
 
   Preferences prefs;
   prefs.begin("gauge", true);
-  uint8_t raw[sizeof(Stored) + sizeof(StoredV8) + sizeof(StoredV7)] = {};   // roomy: getBytes refuses a short buffer
+  uint8_t raw[sizeof(Stored) + sizeof(StoredV9) + sizeof(StoredV8) + sizeof(StoredV7)] = {};   // roomy: getBytes refuses a short buffer
   const size_t n = prefs.getBytes("cfg", raw, sizeof raw);
   prefs.end();
   uint16_t layout = 0;
@@ -192,10 +229,18 @@ void settings_load() {
     Serial.println("[CFG] loaded saved settings");
     return;
   }
+  if (n == sizeof(StoredV9) && layout == 9) {
+    StoredV9 old;
+    memcpy(&old, raw, sizeof old);
+    live = fromV9(old.s);
+    sanitize(live);
+    Serial.println("[CFG] carried over layout 9 settings");
+    return;
+  }
   if (n == sizeof(StoredV8) && layout == 8) {
     StoredV8 old;
     memcpy(&old, raw, sizeof old);
-    live = fromV8(old.s);
+    live = fromV9(v9FromV8(old.s));
     sanitize(live);
     Serial.println("[CFG] carried over layout 8 settings");
     return;
@@ -207,7 +252,7 @@ void settings_load() {
   if ((layout == 7 && n == sizeof old) || (layout == 6 && n == noOrderBytes) ||
       ((layout == 5 || layout == 4) && n == noLimitsBytes)) {
     memcpy(&old, raw, n);
-    live = fromV8(v8FromV7(old.s, layout));
+    live = fromV9(v9FromV8(v8FromV7(old.s, layout)));
     sanitize(live);
     Serial.printf("[CFG] carried over layout %u settings\n", layout);
   } else if (n) {

@@ -23,6 +23,9 @@ TaskHandle_t taskHandle = nullptr;
 volatile bool running = false;
 volatile bool stopRequested = false;
 volatile uint32_t stopAt = 0;
+volatile bool clientSeen = false;   // someone has joined the access point since it came up
+volatile uint32_t startedAt = 0;
+constexpr uint32_t JOIN_WAIT_MS = 60000;   // the adapter stays quiet this long, at most, for a phone to join
 
 char ssid[32] = WEBCONFIG_SSID;
 char password[16] = "";
@@ -101,6 +104,7 @@ void handleLevel() {
 // switches over, so the running firmware stays in place.
 String otaError;
 uint32_t otaBytes = 0;
+volatile int otaPercent = -1;   // -1 when no update is under way; the gauge shows it on screen
 
 void handleUpdateChunk() {
   HTTPUpload &up = server.upload();
@@ -109,18 +113,22 @@ void handleUpdateChunk() {
     case UPLOAD_FILE_START:
       otaError = "";
       otaBytes = 0;
+      otaPercent = 0;
       if (!Update.begin(UPDATE_SIZE_UNKNOWN)) otaError = Update.errorString();
       Serial.printf("[OTA] receiving %s\n", up.filename.c_str());
       break;
     case UPLOAD_FILE_WRITE:
       if (otaError.isEmpty() && Update.write(up.buf, up.currentSize) != up.currentSize) otaError = Update.errorString();
       otaBytes += up.currentSize;
+      if (server.clientContentLength() > 0) otaPercent = min(99, (int)(100ULL * up.totalSize / server.clientContentLength()));
       break;
     case UPLOAD_FILE_END:
       if (otaError.isEmpty() && !Update.end(true)) otaError = Update.errorString();
+      otaPercent = otaError.isEmpty() ? 100 : -1;
       break;
     case UPLOAD_FILE_ABORTED:
       Update.abort();
+      otaPercent = -1;
       otaError = "The upload was interrupted";
       break;
   }
@@ -131,6 +139,7 @@ void handleUpdate() {
                              "<body style='background:#111;color:#eee;font:16px system-ui;padding:2rem'>";
   if (otaBytes == 0 && otaError.isEmpty()) otaError = "No file was received";
   if (!otaError.isEmpty()) {
+    otaPercent = -1;
     Serial.printf("[OTA] failed: %s\n", otaError.c_str());
     server.send(500, "text/html", String(head) + "Update failed: " + otaError + ". The gauge is still running the old firmware.</body>");
     return;
@@ -187,6 +196,7 @@ void task(void *) {
   dns.start(53, "*", AP_IP);
 
   while (!stopRequested && (int32_t)(stopAt - millis()) > 0) {
+    if (!clientSeen && WiFi.softAPgetStationNum() > 0) clientSeen = true;
     dns.processNextRequest();
     server.handleClient();
     delay(2);
@@ -228,6 +238,8 @@ void webconfig_start() {
   snprintf(url, sizeof url, "http://%s", AP_IP.toString().c_str());
 
   stopRequested = false;
+  clientSeen = false;
+  startedAt = millis();
   keepAlive();
   running = true;
 
@@ -247,6 +259,14 @@ void webconfig_start() {
 
 void webconfig_stop() {
   stopRequested = true;
+}
+
+bool webconfig_waitingForClient() {
+  return running && !clientSeen && millis() - startedAt < JOIN_WAIT_MS;
+}
+
+int webconfig_updatePercent() {
+  return otaPercent;
 }
 
 bool webconfig_active() {

@@ -1,6 +1,6 @@
 #pragma once
 
-// QMI8658 accelerometer, used for the clinometer page. The pod sits on the dash
+// QMI8658 accelerometer, used for the roll and pitch gauges. The pod sits on the dash
 // turned toward the driver and tipped up, so "level" is learned once while the
 // car is parked on flat ground and roll and pitch are measured along the car's
 // own axes from there.

@@ -171,12 +171,17 @@ String render(const Settings &s, const char *note) {
          "<button class=ghost>Reboot the gauge</button></form>"
          "<form method=POST action=/stop data-ask=\"Tap again to turn Wi-Fi off\" data-confirm=\"Turn Wi-Fi off? Hold the screen to bring it back.\">"
          "<button class=ghost>Turn Wi-Fi off</button></form>"
-         "<h2>Firmware</h2><form method=POST action=/update enctype=multipart/form-data "
+         "<h2>Firmware</h2><form method=POST action=/update enctype=multipart/form-data data-upload=1 "
          "data-ask=\"Tap again to install\" data-confirm=\"Install this firmware? The gauge restarts when it finishes, which takes about a minute. Keep the car powered.\">"
          "<input type=file name=fw accept=\".bin\" required><button class=ghost>Update firmware</button></form>"
+         "<progress id=upbar max=100 value=0 style='display:none;width:100%;margin-top:.6rem'></progress><p class=warn id=upmsg></p>"
          "<p class=warn>Build: ");
   o += FW_VERSION;
-  o += F("</p></main><div id=toast></div><script>"
+  o += F(". Last start: ");
+  o += fw_lastRestart();
+  o += F(", ");
+  o += String((unsigned)(millis() / 60000));
+  o += F(" min ago.</p></main><div id=toast></div><script>"
          "function sync(){var rows=document.querySelectorAll('tr[data-g]'),on=0,pick=null;"
          "rows.forEach(function(r){var c=r.querySelector('input[type=checkbox]'),d=r.querySelector('input[type=radio]');"
          "d.disabled=!c.checked;if(c.checked){on++;if(!pick)pick=d}"
@@ -193,11 +198,20 @@ String render(const Settings &s, const char *note) {
          "if(!f.armed){e.preventDefault();f.armed=1;b.setAttribute('data-t',b.textContent);b.textContent=f.getAttribute('data-ask');"
          "b.className='ghost arm';var m=document.createElement('p');m.className='warn';m.textContent=c;f.appendChild(m);f.m=m;clearTimeout(f.t);f.t=setTimeout(function(){disarm(f)},5000);return}"
          "clearTimeout(f.t);if(f.m)f.m.remove()}"
+         "if(f.hasAttribute('data-upload')){e.preventDefault();upload(f);return}"
          "var t=f.getAttribute('data-toast');if(!t)return;e.preventDefault();"
          "fetch(f.action,{method:'POST',body:new URLSearchParams(new FormData(f))}).then(function(r){return r.text()})"
          ".then(function(h){var y=scrollY;document.body.innerHTML=new DOMParser().parseFromString(h,'text/html').body.innerHTML;"
          "var n=document.querySelector('.note');if(n)n.remove();sync();scrollTo(0,y);toast(t)})"
          ".catch(function(){toast('Could not reach the gauge',1)})});"
+         "function upload(f){var b=f.querySelector('button'),bar=document.getElementById('upbar'),msg=document.getElementById('upmsg');"
+         "b.disabled=true;bar.style.display='block';bar.value=0;msg.textContent='Uploading 0%';"
+         "var x=new XMLHttpRequest();x.open('POST',f.action);"
+         "x.upload.onprogress=function(ev){if(ev.lengthComputable){var p=Math.round(100*ev.loaded/ev.total);bar.value=p;"
+         "msg.textContent=p<100?'Uploading '+p+'%':'Installing. The gauge restarts when it finishes.'}};"
+         "x.onload=function(){document.body.innerHTML=new DOMParser().parseFromString(x.responseText,'text/html').body.innerHTML};"
+         "x.onerror=function(){msg.textContent='Connection lost. If the gauge screen says it is installing or restarting, the update is fine.';b.disabled=false};"
+         "x.send(new FormData(f))}"
          "function rows(){return Array.prototype.slice.call(document.querySelectorAll('tr[data-g]'))}"
          "document.addEventListener('click',function(e){var b=e.target.closest('button.mb');if(!b)return;"
          "var r=b.closest('tr'),all=rows(),i=all.indexOf(r),d=+b.getAttribute('data-d'),o=all[i+d];if(!o)return;"

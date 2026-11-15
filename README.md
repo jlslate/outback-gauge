@@ -39,6 +39,7 @@ it does is also a touch gesture.
 | Speed (mph) | PID 0x0D, converted from km/h; carries a peak needle |
 | Tachometer (rpm) | PID 0x0C; carries a peak needle |
 | Fuel (%) | PID 0x2F tank level, smoothed; warns below a set level. Not every car reports it, and this one is untested |
+| Clinometer (°) | The board's accelerometer. Roll is the dial, with white needles at the furthest lean each way; pitch is the window in the middle, with white lines at the furthest nose up and down. Park level and use **Set clinometer level** on the Wi-Fi page once; a hold resets the maximums |
 | Battery (V) | `ATRV`, measured by the adapter; works with the engine off |
 
 **Press and hold for two seconds** on any of these opens the Wi-Fi settings page and starts the

@@ -474,6 +474,12 @@ void runSession() {
   int failures = 0;
 
   while (linkUp()) {
+    // The radio is shared with Wi-Fi, and a phone joining the access point while the adapter is
+    // polled flat out can time out. Hold the questions until it has joined.
+    if (webconfig_waitingForClient()) {
+      vTaskDelay(pdMS_TO_TICKS(100));
+      continue;
+    }
     if (!ecu) {
       setState(ObdState::NoEcu);
       poll(Item::Volts);  // the adapter can still read battery voltage

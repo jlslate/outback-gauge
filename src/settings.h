@@ -9,7 +9,8 @@
 // Reads happen on the UI task, writes on the web server's task, so the web
 // side stages a whole struct and the UI task swaps it in at a safe point
 // (settings_apply) rather than editing fields underneath a running frame.
-constexpr int GAUGE_PAGES = 10;             // keep in step with the page list in ui.cpp and webpage.cpp
+constexpr int GAUGE_PAGES = 10;            // keep in step with the page list in ui.cpp and webpage.cpp
+constexpr int MAX_GAUGES = 16;             // room in the saved order, so adding a gauge doesn't change the layout
 
 struct Settings {
   uint8_t backlight;  // percent
@@ -34,7 +35,7 @@ struct Settings {
   float pitchWarnDeg;  // and at this much nose up or down
 
   bool warnHidden;     // a gauge that is switched off still comes up when it warns
-  uint8_t order[GAUGE_PAGES];  // the gauges in the order the screen steps through them; a permutation of 0..GAUGE_PAGES-1
+  uint8_t order[MAX_GAUGES];  // the gauges in the order the screen steps through them; the first GAUGE_PAGES are a permutation of 0..GAUGE_PAGES-1
 };
 
 constexpr uint8_t START_LAST = 255;

@@ -19,7 +19,7 @@ namespace {
 constexpr lv_coord_t C = LCD_SIZE / 2;  // screen center
 constexpr uint32_t WHITE = 0xFFFFFF, GREY = 0x9E9E9E, RED = 0xE53935, AMBER = 0xFB8C00, BLUE = 0x1E88E5;
 constexpr uint32_t TEXT_GREEN = 0x4CAF50, TEXT_ORANGE = 0xFF9800, TEXT_BLUE = 0x42A5F5, TEXT_PINK = 0xFF4FA3,
-                   TEXT_YELLOW = 0xFFEB3B, TEXT_PURPLE = 0xBA68C8, TEXT_TEAL = 0x26C6DA, TEXT_LIME = 0xC0CA33, TEXT_SILVER = 0xE0E0E0;
+                   TEXT_YELLOW = 0xFFEB3B, TEXT_PURPLE = 0xBA68C8, TEXT_TEAL = 0x26C6DA, TEXT_LIME = 0xC0CA33, TEXT_SILVER = 0xE0E0E0, TEXT_MINT = 0x80CBC4, TEXT_PEACH = 0xFFAB91;
 #define DEG "\xC2\xB0"
 
 // A coloured arc on the scale. One endpoint can be driven by a setting, so the
@@ -29,6 +29,7 @@ struct Band {
   uint32_t color = 0;  // 0 means this gauge has no second band
   float Settings::*live = nullptr;
   bool liveIsFrom = true;
+  float sign = 1;      // -1 puts the live endpoint on the other side of zero
 };
 
 struct GaugeCfg {
@@ -38,7 +39,7 @@ struct GaugeCfg {
   Band bands[2];
   Focus focus;
   uint32_t color;  // the readout's colour; red is kept for a warning
-  int8_t track;    // +1: a thin needle holds the highest reading; -1: the lowest; 0: none
+  int8_t track;    // +1: a thin needle holds the highest reading; -1: the lowest; 2: both; 0: none
 };
 
 const GaugeCfg BOOST = {"BOOST", "psi", "%.1f", -15, 20, 1, 36, 5, {{0, 20, RED, &Settings::boostWarnPsi}, {}}, Focus::Boost, TEXT_ORANGE, 1};
@@ -49,26 +50,30 @@ const GaugeCfg INTAKE = {"INTAKE\nAIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 
 const GaugeCfg SPEED = {"SPEED", "mph", "%.0f", 0, 160, 1, 17, 2, {{0, 160, RED, &Settings::speedWarnMph}, {}}, Focus::Speed, TEXT_TEAL, 1};
 const GaugeCfg TACH = {"TACH", "rpm", "%.0f", 0, 7000, 1, 15, 2, {{0, 7000, RED, &Settings::rpmWarn}, {}}, Focus::Rpm, TEXT_LIME, 1};
 const GaugeCfg FUEL = {"FUEL", "%", "%.0f", 0, 100, 1, 11, 2, {{0, 0, RED, &Settings::fuelWarnPct, false}, {}}, Focus::Fuel, TEXT_SILVER, 0};
-const GaugeCfg TILTCFG = {"", "", "", 0, 0, 1, 0, 0, {{}, {}}, Focus::None, WHITE, 0};   // placeholder: the page draws itself
+// The clinometer: roll is an ordinary dial (left of centre is a lean to the left, with a red band past
+// each warning limit) with the artificial horizon for pitch in a window in the middle (see makeTilt).
+const GaugeCfg TILT = {"", "", "%.0f", -45, 45, 1, 19, 3, {{-45, 0, RED, &Settings::rollWarnDeg, false, -1}, {0, 45, RED, &Settings::rollWarnDeg}}, Focus::None, TEXT_MINT, 2};
 const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts, TEXT_GREEN, -1};
 
 struct Gauge {
   const GaugeCfg *cfg = nullptr;
   lv_obj_t *screen = nullptr, *meter = nullptr, *value = nullptr, *status = nullptr;
-  lv_meter_indicator_t *needle = nullptr, *peakNeedle = nullptr;   // peakNeedle: the highest (or lowest) reading, where cfg->track asks for one
+  lv_meter_indicator_t *needle = nullptr, *peakNeedle = nullptr, *lowNeedle = nullptr;   // peakNeedle: the highest (or lowest) reading, where cfg->track asks for one; lowNeedle the lowest, for track 2
   lv_meter_indicator_t *arcs[2] = {nullptr, nullptr};
-  int32_t needleAt = INT32_MIN, peakAt = INT32_MIN;
+  int32_t needleAt = INT32_MIN, peakAt = INT32_MIN, lowAt = INT32_MIN;
   lv_obj_t *dots[GAUGE_PAGES] = {};
 };
 
-// The clinometer isn't a dial, so it has a page of its own; it still takes a
-// slot in gauges[] (screen, dots, cfg) so paging treats it like the rest.
-struct TiltPage {
-  lv_obj_t *horizon, *maxUp, *maxDown, *maxLeft, *maxRight, *roll, *pitch, *rollMax, *pitchMax, *hint;
-  lv_point_t pts[2], upPts[2], downPts[2], leftPts[2], rightPts[2];
-  int shownRoll = INT_MIN, shownPitch = INT_MIN;
-  float maxRollL = 0, maxRollR = 0, maxPitchUp = 0, maxPitchDown = 0;  // degrees, all positive
-  int shownMax = INT_MIN;
+// The artificial horizon in the middle of the roll dial: the window turns with
+// the car's roll so the horizon stays level with the world, with sky above, ground
+// below, and a ladder of pitch lines read against fixed marks at the sides.
+struct Face {
+  static constexpr int LADDER = 19, NUMS = 9;   // a rung every 5 degrees of pitch from -45 to 45, a number every 10
+  lv_obj_t *ground, *horizon, *rung[LADDER], *numL[NUMS], *numR[NUMS], *maxUp, *maxDown;
+  lv_obj_t *pitch;   // the pitch readout
+  lv_point_t groundPts[2], horizonPts[2], rungPts[LADDER][2], upPts[2], downPts[2];
+  int shownRoll = INT_MIN, shownPitch = INT_MIN, shownMax = INT_MIN, shownWarn = INT_MIN;
+  float pitchHigh = NAN, pitchLow = NAN;   // furthest nose up and down since the last reset (low is <= 0)
 };
 
 struct SettingsPage {
@@ -78,12 +83,20 @@ struct SettingsPage {
 enum : uint8_t { PAGE_BOOST, PAGE_LOAD, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_SPEED, PAGE_TACH, PAGE_FUEL, PAGE_TILT, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
 
 Gauge gauges[PAGE_COUNT];
-TiltPage tilt;
+Face face;
+// Covers whatever page is up while a firmware update arrives over Wi-Fi.
+struct UpdateOverlay {
+  lv_obj_t *panel, *percent, *note;   // the big font has no '%', so the unit is a separate label
+  int shown = INT_MIN;
+};
+
 SettingsPage settingsPage;
+UpdateOverlay updateOverlay;
 uint8_t page = PAGE_BOOST;
 uint32_t shownAt = 0;  // when the current page came up, for auto-rotate
 uint8_t cameFrom = PAGE_BOOST;    // the page before the last tap, for undoing it on a double tap
 uint8_t returnPage = PAGE_BOOST;  // where the settings page goes back to
+float extremeLow[PAGE_COUNT];   // the lowest reading, for gauges that track both ends
 float extreme[PAGE_COUNT];   // highest or lowest reading since the last reset, per gauge that tracks one; NAN until there is one
 uint32_t toastUntil = 0;
 const char *toastText = "";
@@ -166,8 +179,8 @@ void applyBands(Gauge &g) {
   for (int i = 0; i < 2; i++) {
     if (!g.arcs[i]) continue;
     const Band &b = g.cfg->bands[i];
-    const float from = b.live && b.liveIsFrom ? s.*(b.live) : b.from;
-    const float to = b.live && !b.liveIsFrom ? s.*(b.live) : b.to;
+    const float from = b.live && b.liveIsFrom ? b.sign * s.*(b.live) : b.from;
+    const float to = b.live && !b.liveIsFrom ? b.sign * s.*(b.live) : b.to;
     lv_meter_set_indicator_start_value(g.meter, g.arcs[i], lroundf(from * g.cfg->mul));
     lv_meter_set_indicator_end_value(g.meter, g.arcs[i], lroundf(to * g.cfg->mul));
   }
@@ -212,6 +225,10 @@ Gauge makeGauge(const GaugeCfg &cfg) {
     g.peakNeedle = lv_meter_add_needle_line(g.meter, scale, 3, lv_color_white(), -24);
     lv_meter_set_indicator_value(g.meter, g.peakNeedle, cfg.min * cfg.mul);
   }
+  if (cfg.track == 2) {
+    g.lowNeedle = lv_meter_add_needle_line(g.meter, scale, 3, lv_color_white(), -24);
+    lv_meter_set_indicator_value(g.meter, g.lowNeedle, cfg.min * cfg.mul);
+  }
   g.needle = lv_meter_add_needle_line(g.meter, scale, 6, lv_color_hex(0xFF6D00), -24);
   lv_meter_set_indicator_value(g.meter, g.needle, cfg.min * cfg.mul);
   if (cfg.mul > 1 || cfg.max >= 1000) lv_obj_add_event_cb(g.meter, scaledTickLabels, LV_EVENT_DRAW_PART_BEGIN, (void *)&cfg);
@@ -222,14 +239,137 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   return g;
 }
 
+constexpr int WINDOW = 180;                    // the artificial horizon, centred on the dial
+constexpr float SCALE = WINDOW / 130.0f;       // the window's sizes below were drawn for 130
+constexpr float PX_PER_DEG = 3.5f * SCALE;     // pitch scale in the window
+constexpr float LADDER_BAND = 50.0f * SCALE;   // rungs further than this from the middle are hidden
+constexpr float NUM_BAND = 38.0f * SCALE;      // and the numbers, which need more room at the sides
+constexpr float MAX_BAND = 58.0f * SCALE;      // the maximum marks may go a little further out
+
+void windowLine(lv_obj_t *l, int w, uint32_t color) {
+  lv_obj_set_size(l, WINDOW, WINDOW);
+  lv_obj_set_pos(l, 0, 0);
+  lv_obj_set_style_line_width(l, w, 0);
+  lv_obj_set_style_line_color(l, lv_color_hex(color), 0);
+  lv_obj_set_style_line_rounded(l, true, 0);
+}
+
+// The clinometer page: the roll dial from makeGauge with the pitch window
+// inside it (sent to the back so the needles sweep over it) and both readouts
+// under the dial.
+Gauge makeTilt(const GaugeCfg &cfg) {
+  Gauge g = makeGauge(cfg);
+  Face &f = face;
+
+  lv_obj_t *win = lv_obj_create(g.screen);
+  lv_obj_remove_style_all(win);
+  lv_obj_set_size(win, WINDOW, WINDOW);
+  lv_obj_center(win);
+  lv_obj_set_style_radius(win, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_clip_corner(win, true, 0);
+  lv_obj_set_style_bg_opa(win, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(win, lv_color_hex(0x1B5E8F), 0);   // the sky
+  lv_obj_clear_flag(win, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_move_background(win);
+
+  f.ground = lv_line_create(win);   // a very wide line is the ground half
+  windowLine(f.ground, 300, 0x3B2E25);
+  lv_obj_set_style_line_rounded(f.ground, false, 0);
+  f.horizon = lv_line_create(win);
+  windowLine(f.horizon, 2, WHITE);
+  for (int i = 0; i < Face::LADDER; i++) {
+    f.rung[i] = lv_line_create(win);
+    windowLine(f.rung[i], 2, 0xE0E0E0);
+  }
+  for (int i = 0; i < Face::NUMS; i++) {
+    f.numL[i] = label(win, &lv_font_montserrat_14, WHITE, 0, 0);
+    f.numR[i] = label(win, &lv_font_montserrat_14, WHITE, 0, 0);
+    lv_label_set_text_fmt(f.numL[i], "%d", abs((i - 4) * 10));
+    lv_label_set_text_fmt(f.numR[i], "%d", abs((i - 4) * 10));
+  }
+  f.maxUp = lv_line_create(win);
+  windowLine(f.maxUp, 3, WHITE);
+  f.maxDown = lv_line_create(win);
+  windowLine(f.maxDown, 3, WHITE);
+
+  // The fixed marks the ladder is read against, at the sides of the window.
+  static lv_point_t left[] = {{0, WINDOW / 2}, {(lv_coord_t)(16 * SCALE), WINDOW / 2}}, right[] = {{(lv_coord_t)(WINDOW - 16 * SCALE), WINDOW / 2}, {WINDOW, WINDOW / 2}};
+  lv_obj_t *m = lv_line_create(win);
+  windowLine(m, 4, 0xFF6D00);
+  lv_line_set_points(m, left, 2);
+  m = lv_line_create(win);
+  windowLine(m, 4, 0xFF6D00);
+  lv_line_set_points(m, right, 2);
+
+  // makeGauge made one big readout for roll; make it, and a twin for pitch, smaller and side by side.
+  lv_obj_set_style_text_font(g.value, &lv_font_montserrat_36, 0);
+  lv_obj_align(g.value, LV_ALIGN_CENTER, -50, 114);
+  f.pitch = label(g.screen, &lv_font_montserrat_36, TEXT_PEACH, 50, 114);
+  lv_label_set_text(label(g.screen, &lv_font_montserrat_18, TEXT_MINT, -50, 142), "ROLL " DEG);
+  lv_label_set_text(label(g.screen, &lv_font_montserrat_18, TEXT_PEACH, 50, 142), "PITCH " DEG);
+  return g;
+}
+
+// A line across the window parallel to the horizon: `off` px below it (along
+// the window's own down), `half` px each way.
+void faceLine(lv_obj_t *line, lv_point_t *pts, float rollRad, float off, float half) {
+  const float dx = cosf(rollRad), dy = sinf(rollRad);   // along the horizon
+  const float cx = WINDOW / 2 + (-dy) * off, cy = WINDOW / 2 + dx * off;
+  pts[0] = {(lv_coord_t)(cx - dx * half), (lv_coord_t)(cy - dy * half)};
+  pts[1] = {(lv_coord_t)(cx + dx * half), (lv_coord_t)(cy + dy * half)};
+  lv_line_set_points(line, pts, 2);
+}
+
+bool faceVisible(lv_obj_t *obj, float off, float band) {
+  const bool in = fabsf(off) <= band;
+  if (in) lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+  return in;
+}
+
+// Roll and pitch are the car's, in degrees (0 with no reading); the pitch maximums are positive numbers.
+void updateFace(float roll, float pitch, float pitchUp, float pitchDown) {
+  Face &f = face;
+  const Settings &s = settings();
+  const int sr = lroundf(roll * 2), sp = lroundf(pitch * 2), sm = lroundf(pitchUp) * 100 + lroundf(pitchDown), sw = lroundf(s.pitchWarnDeg);
+  if (sr == f.shownRoll && sp == f.shownPitch && sm == f.shownMax && sw == f.shownWarn) return;
+  f.shownRoll = sr, f.shownPitch = sp, f.shownMax = sm, f.shownWarn = sw;
+
+  // The window turns opposite to the car, so the horizon stays level with the world.
+  const float a = -roll * DEG_TO_RAD, shift = constrain(pitch, -45.0f, 45.0f) * PX_PER_DEG;
+  faceLine(f.ground, f.groundPts, a, shift + 150, 300);
+  faceLine(f.horizon, f.horizonPts, a, shift, 200);
+  for (int i = 0; i < Face::LADDER; i++) {
+    const float q = -45 + 5 * i, off = (pitch - q) * PX_PER_DEG;
+    if (!faceVisible(f.rung[i], off, LADDER_BAND)) continue;
+    faceLine(f.rung[i], f.rungPts[i], a, off, (i % 2 == 0 ? 22 : 11) * SCALE);
+    lv_obj_set_style_line_color(f.rung[i], lv_color_hex(fabsf(q) >= s.pitchWarnDeg ? 0xFF5252 : 0xE0E0E0), 0);
+  }
+  for (int i = 0; i < Face::NUMS; i++) {
+    const float q = (i - 4) * 10, off = (pitch - q) * PX_PER_DEG;
+    const bool show = q != 0 && fabsf(off) <= NUM_BAND;
+    faceVisible(f.numL[i], show ? 0 : 999, 1);
+    faceVisible(f.numR[i], show ? 0 : 999, 1);
+    if (!show) continue;
+    const float dx = cosf(a), dy = sinf(a);
+    lv_obj_align(f.numL[i], LV_ALIGN_CENTER, (lv_coord_t)(-dy * off - dx * 44 * SCALE), (lv_coord_t)(dx * off - dy * 44 * SCALE));
+    lv_obj_align(f.numR[i], LV_ALIGN_CENTER, (lv_coord_t)(-dy * off + dx * 44 * SCALE), (lv_coord_t)(dx * off + dy * 44 * SCALE));
+  }
+  float off = (pitch - pitchUp) * PX_PER_DEG;
+  if (faceVisible(f.maxUp, off, MAX_BAND)) faceLine(f.maxUp, f.upPts, a, off, 34 * SCALE);
+  off = (pitch + pitchDown) * PX_PER_DEG;
+  if (faceVisible(f.maxDown, off, MAX_BAND)) faceLine(f.maxDown, f.downPts, a, off, 34 * SCALE);
+}
+
 void setGauge(Gauge &g, bool isFresh, float v, bool warn, const char *status) {
   if (isFresh) {
     const int32_t at = lroundf(constrain(v, (float)g.cfg->min, (float)g.cfg->max) * g.cfg->mul);
-    if (at != g.needleAt) {
+    if (g.needle && at != g.needleAt) {
       lv_meter_set_indicator_value(g.meter, g.needle, at);
       g.needleAt = at;
     }
     char buf[16];
+    if (g.cfg->track == 2) v = roundf(v) + 0.0f;   // the big font has no '+', and a lean of -0.3 shouldn't read -0
     snprintf(buf, sizeof buf, g.cfg->fmt, v);
     setText(g.value, buf);
   } else {
@@ -277,133 +417,34 @@ void updateSettings() {
   setText(p.foot, buf);
 }
 
-// ---- clinometer ------------------------------------------------------------
-
-void thinLine(lv_obj_t *l, int w, uint32_t color) {
-  lv_obj_set_size(l, LCD_SIZE, LCD_SIZE);
-  lv_obj_set_pos(l, 0, 0);
-  lv_obj_set_style_line_width(l, w, 0);
-  lv_obj_set_style_line_color(l, lv_color_hex(color), 0);
-  lv_obj_set_style_line_rounded(l, true, 0);
+void makeUpdateOverlay() {
+  UpdateOverlay &o = updateOverlay;
+  o.panel = lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(o.panel);
+  lv_obj_set_size(o.panel, LCD_SIZE, LCD_SIZE);
+  lv_obj_set_style_bg_opa(o.panel, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(o.panel, lv_color_black(), 0);
+  lv_obj_add_flag(o.panel, LV_OBJ_FLAG_HIDDEN);
+  lv_label_set_text(label(o.panel, &lv_font_montserrat_36, AMBER, 0, -70), "UPDATING");
+  o.percent = label(o.panel, &font_big, WHITE, 0, 0);
+  lv_label_set_text(label(o.panel, &lv_font_montserrat_24, GREY, 0, 56), "%");
+  o.note = label(o.panel, &lv_font_montserrat_18, GREY, 0, 100);
 }
 
-void makeTilt() {
-  TiltPage &p = tilt;
-  gauges[PAGE_TILT].cfg = &TILTCFG;
-  lv_obj_t *screen = gauges[PAGE_TILT].screen = newScreen();
-
-  p.horizon = lv_line_create(screen);
-  thinLine(p.horizon, 6, 0x29B6F6);
-  // Where the horizon stood at the most nose-up and nose-down: thin lines parallel to it.
-  p.maxUp = lv_line_create(screen);
-  thinLine(p.maxUp, 2, WHITE);
-  p.maxDown = lv_line_create(screen);
-  thinLine(p.maxDown, 2, WHITE);
-  // The furthest lean each way, as marks on the rim (right lean on the right).
-  p.maxLeft = lv_line_create(screen);
-  thinLine(p.maxLeft, 3, WHITE);
-  p.maxRight = lv_line_create(screen);
-  thinLine(p.maxRight, 3, WHITE);
-
-  // Fixed "vehicle" marker the horizon moves against.
-  static lv_point_t marker[] = {{C - 70, C}, {C - 24, C}, {C - 12, C + 12}, {C, C}, {C + 12, C + 12}, {C + 24, C}, {C + 70, C}};
-  lv_obj_t *m = lv_line_create(screen);
-  thinLine(m, 5, AMBER);
-  lv_line_set_points(m, marker, sizeof marker / sizeof marker[0]);
-
-  lv_label_set_text(label(screen, &lv_font_montserrat_14, GREY, -95, 92), "ROLL");
-  lv_label_set_text(label(screen, &lv_font_montserrat_14, GREY, 95, 92), "PITCH");
-  p.roll = label(screen, &lv_font_montserrat_28, WHITE, -95, 118);
-  p.pitch = label(screen, &lv_font_montserrat_28, WHITE, 95, 118);
-  p.rollMax = label(screen, &lv_font_montserrat_14, GREY, -95, 144);
-  p.pitchMax = label(screen, &lv_font_montserrat_14, GREY, 95, 144);
-  p.hint = label(screen, &lv_font_montserrat_14, GREY, 0, -120);
-}
-
-// A line across the screen at `shift` px (positive = lower) from where the
-// horizon would sit at roll 0, turned with the roll; `half` is half its length.
-void horizonLine(lv_point_t *pts, float rollDeg, float shift, float half) {
-  const float a = -rollDeg * DEG_TO_RAD;
-  const float dx = cosf(a), dy = sinf(a);
-  const float cx = C - dy * shift, cy = C + dx * shift;
-  pts[0] = {(lv_coord_t)(cx - dx * half), (lv_coord_t)(cy - dy * half)};
-  pts[1] = {(lv_coord_t)(cx + dx * half), (lv_coord_t)(cy + dy * half)};
-}
-
-// A short mark on the rim, `deg` clockwise from the top.
-void rimMark(lv_point_t *pts, float deg) {
-  const float a = deg * DEG_TO_RAD, s = sinf(a), c = cosf(a);
-  pts[0] = {(lv_coord_t)(C + (C - 8) * s), (lv_coord_t)(C - (C - 8) * c)};
-  pts[1] = {(lv_coord_t)(C + (C - 34) * s), (lv_coord_t)(C - (C - 34) * c)};
-}
-
-// The maxima keep growing whichever page is up.
-void trackTilt(const Tilt &t) {
-  if (!t.ok || !t.calibrated) return;
-  TiltPage &p = tilt;
-  p.maxRollR = max(p.maxRollR, t.roll);
-  p.maxRollL = max(p.maxRollL, -t.roll);
-  p.maxPitchUp = max(p.maxPitchUp, t.pitch);
-  p.maxPitchDown = max(p.maxPitchDown, -t.pitch);
-}
-
-void resetTiltMax() {
-  TiltPage &p = tilt;
-  p.maxRollL = p.maxRollR = p.maxPitchUp = p.maxPitchDown = 0;
-  p.shownRoll = INT_MIN;
-}
-
-void updateTilt(const Tilt &t) {
-  TiltPage &p = tilt;
-  const bool toast = millis() < toastUntil;
-  if (toast) {
-    setText(p.hint, toastText);
-    setColor(p.hint, toastColor);
-  } else {
-    setColor(p.hint, GREY);
-    setText(p.hint, !t.ok ? "Motion sensor not found" : !t.calibrated ? "Park level: set level on the Wi-Fi page" : "");
-  }
-  if (!t.ok || !t.calibrated) {
-    setText(p.roll, "--");
-    setText(p.pitch, "--");
-    setText(p.rollMax, "");
-    setText(p.pitchMax, "");
+// -1 hides it; 0 to 99 is the upload, 100 the install and restart.
+void showUpdate(int percent) {
+  UpdateOverlay &o = updateOverlay;
+  if (percent == o.shown) return;
+  o.shown = percent;
+  if (percent < 0) {
+    lv_obj_add_flag(o.panel, LV_OBJ_FLAG_HIDDEN);
     return;
   }
-
-  const int roll = lroundf(t.roll), pitch = lroundf(t.pitch);
-  const int maxes = lroundf(p.maxRollL) * 1000000 + lroundf(p.maxRollR) * 10000 + lroundf(p.maxPitchUp) * 100 + lroundf(p.maxPitchDown);
-  if (roll == p.shownRoll && pitch == p.shownPitch && maxes == p.shownMax) return;
-  p.shownRoll = roll;
-  p.shownPitch = pitch;
-  p.shownMax = maxes;
-
-  // Attitude-indicator style: the horizon counter-rotates against the body
-  // roll and drops as the nose rises.
-  constexpr float PX_PER_DEG = 4.0f;
-  horizonLine(p.pts, t.roll, constrain(t.pitch, -30.0f, 30.0f) * PX_PER_DEG, 170);
-  lv_line_set_points(p.horizon, p.pts, 2);
-  horizonLine(p.upPts, t.roll, constrain(p.maxPitchUp, 0.0f, 30.0f) * PX_PER_DEG, 55);
-  lv_line_set_points(p.maxUp, p.upPts, 2);
-  horizonLine(p.downPts, t.roll, -constrain(p.maxPitchDown, 0.0f, 30.0f) * PX_PER_DEG, 55);
-  lv_line_set_points(p.maxDown, p.downPts, 2);
-  rimMark(p.leftPts, -p.maxRollL);
-  lv_line_set_points(p.maxLeft, p.leftPts, 2);
-  rimMark(p.rightPts, p.maxRollR);
-  lv_line_set_points(p.maxRight, p.rightPts, 2);
-
-  char buf[24];
-  const Settings &s = settings();
-  snprintf(buf, sizeof buf, "%+d" DEG, roll);
-  setText(p.roll, buf);
-  setColor(p.roll, fabsf(t.roll) >= s.rollWarnDeg ? RED : WHITE);
-  snprintf(buf, sizeof buf, "%+d" DEG, pitch);
-  setText(p.pitch, buf);
-  setColor(p.pitch, fabsf(t.pitch) >= s.pitchWarnDeg ? RED : WHITE);
-  snprintf(buf, sizeof buf, "L %d  R %d", (int)lroundf(p.maxRollL), (int)lroundf(p.maxRollR));
-  setText(p.rollMax, buf);
-  snprintf(buf, sizeof buf, "UP %d  DN %d", (int)lroundf(p.maxPitchUp), (int)lroundf(p.maxPitchDown));
-  setText(p.pitchMax, buf);
+  char buf[8];
+  snprintf(buf, sizeof buf, "%d", percent);
+  setText(o.percent, buf);
+  setText(o.note, percent < 100 ? "Keep the car powered" : "Installing, restarting soon");
+  lv_obj_clear_flag(o.panel, LV_OBJ_FLAG_HIDDEN);
 }
 
 // ---- paging ----------------------------------------------------------------
@@ -477,7 +518,7 @@ void loadPeaks() {
   prefs.end();
   if (n != sizeof saved) return;
   for (uint8_t i = 0; i < PAGE_COUNT; i++)
-    if (gauges[i].cfg->track > 0 && isfinite(saved[i])) extreme[i] = saved[i];
+    if (gauges[i].cfg->track == 1 && isfinite(saved[i])) extreme[i] = saved[i];
 }
 
 void savePeaks() {
@@ -493,6 +534,7 @@ void savePeaks() {
 
 void ui_init() {
   for (float &e : extreme) e = NAN;
+  for (float &e : extremeLow) e = NAN;
   gauges[PAGE_BOOST] = makeGauge(BOOST);
   gauges[PAGE_LOAD] = makeGauge(LOAD);
   gauges[PAGE_COOLANT] = makeGauge(COOLANT);
@@ -502,9 +544,10 @@ void ui_init() {
   gauges[PAGE_SPEED] = makeGauge(SPEED);
   gauges[PAGE_TACH] = makeGauge(TACH);
   gauges[PAGE_FUEL] = makeGauge(FUEL);
-  makeTilt();
+  gauges[PAGE_TILT] = makeTilt(TILT);
   loadPeaks();
   makeSettings();
+  makeUpdateOverlay();
   for (uint8_t i = 0; i < PAGE_COUNT; i++) addPageDots(gauges[i].screen, gauges[i].dots, PAGE_COUNT);
   updateDots();
 
@@ -518,6 +561,24 @@ void ui_init() {
   showPage(visibleFrom(start < PAGE_COUNT ? start : PAGE_BOOST));
 }
 
+// The clinometer only counts as warning once it has stayed past a limit for a
+// moment: picking the gauge up, or a hard corner, swings it past 25 degrees for
+// an instant and shouldn't pull the screen over.
+static constexpr uint32_t TILT_WARN_MS = 1500;
+static bool tiltWarning = false;
+static uint32_t tiltOverSince = 0;
+
+static void checkTiltWarning(const Tilt &lean, const Settings &s) {
+  const bool over = lean.ok && lean.calibrated && (fabsf(lean.roll) >= s.rollWarnDeg || fabsf(lean.pitch) >= s.pitchWarnDeg);
+  if (!over) {
+    tiltOverSince = 0;
+    tiltWarning = false;
+    return;
+  }
+  if (!tiltOverSince) tiltOverSince = millis();
+  tiltWarning = millis() - tiltOverSince >= TILT_WARN_MS;
+}
+
 // Whether a gauge's reading is fresh and past its warning threshold.
 static bool warning(uint8_t p, const Telemetry &t, const Settings &s) {
   switch (p) {
@@ -529,10 +590,7 @@ static bool warning(uint8_t p, const Telemetry &t, const Settings &s) {
     case PAGE_SPEED: return fresh(t.speedAt) && t.speedMph >= s.speedWarnMph;
     case PAGE_TACH: return fresh(t.rpmAt) && t.rpm >= s.rpmWarn;
     case PAGE_FUEL: return fresh(t.fuelAt) && t.fuelPct < s.fuelWarnPct;
-    case PAGE_TILT: {
-      const Tilt lean = imu_tilt();
-      return lean.ok && lean.calibrated && (fabsf(lean.roll) >= s.rollWarnDeg || fabsf(lean.pitch) >= s.pitchWarnDeg);
-    }
+    case PAGE_TILT: return tiltWarning;
   }
   return false;  // engine load has no warning
 }
@@ -567,16 +625,22 @@ static bool checkAlarms(const Telemetry &t, const Settings &s) {
   return any;
 }
 
-// Keeps each tracking gauge's needle where its extreme is; with none yet it rests at the start of the scale.
+// Keeps each tracking gauge's needle where its extreme is; with none yet it rests at the start of the scale
+// (at zero for the two-sided ones, which start from level).
 static void moveExtremeNeedles() {
   for (uint8_t i = 0; i < PAGE_COUNT; i++) {
     Gauge &g = gauges[i];
-    if (!g.cfg->track) continue;
-    const float v = isnan(extreme[i]) ? (float)g.cfg->min : constrain(extreme[i], (float)g.cfg->min, (float)g.cfg->max);
-    const int32_t at = lroundf(v * g.cfg->mul);
-    if (at == g.peakAt) continue;
-    lv_meter_set_indicator_value(g.meter, g.peakNeedle, at);
-    g.peakAt = at;
+    if (!g.cfg->track || !g.meter) continue;
+    const float rest = g.cfg->track == 2 ? 0.0f : (float)g.cfg->min;
+    auto place = [&](lv_meter_indicator_t *needle, int32_t &was, float value) {
+      const float v = isnan(value) ? rest : constrain(value, (float)g.cfg->min, (float)g.cfg->max);
+      const int32_t at = lroundf(v * g.cfg->mul);
+      if (at == was) return;
+      lv_meter_set_indicator_value(g.meter, needle, at);
+      was = at;
+    };
+    place(g.peakNeedle, g.peakAt, extreme[i]);
+    if (g.lowNeedle) place(g.lowNeedle, g.lowAt, extremeLow[i]);
   }
 }
 
@@ -593,38 +657,52 @@ static bool reading(uint8_t p, const Telemetry &t, float &v) {
     case PAGE_SPEED: v = t.speedMph, at = t.speedAt; break;
     case PAGE_TACH: v = t.rpm, at = t.rpmAt; break;
     case PAGE_FUEL: v = t.fuelPct, at = t.fuelAt; break;
+    case PAGE_TILT: {   // the dial reads roll; pitch is read where the window is drawn
+      const Tilt lean = imu_tilt();
+      v = lean.roll;
+      at = lean.ok && lean.calibrated ? millis() : 0;   // read afresh every frame, so a reading is never stale
+      break;
+    }
   }
   return fresh(at);
 }
 
 void ui_update(const Telemetry &t) {
   const Settings &s = settings();
+  showUpdate(webconfig_updatePercent());
   // Wi-Fi went off by itself (web page button or idle timeout): back to the gauges.
   if (page == PAGE_SETTINGS && !webconfig_active()) showPage(returnPage);
+  const Tilt lean = imu_tilt();
+  checkTiltWarning(lean, s);
   const bool alarmed = checkAlarms(t, s);
   if (s.autoRotate && !alarmed && page != PAGE_SETTINGS && millis() - shownAt >= (uint32_t)(s.autoRotateSecs * 1000)) showPage(nextShown(page));
   const bool live = t.state == ObdState::Live || t.state == ObdState::Simulated;
   for (uint8_t i = 0; i < PAGE_COUNT; i++) {
     float v;
     // Battery voltage is read by the adapter itself, so it counts without the engine answering.
-    if (!gauges[i].cfg->track || !(live || i == PAGE_VOLTS) || !reading(i, t, v)) continue;
+    // The clinometer's sensor is on the board, so it counts without the car answering.
+    if (!gauges[i].cfg->track || !(live || i == PAGE_VOLTS || i == PAGE_TILT) || !reading(i, t, v)) continue;
     const int8_t dir = gauges[i].cfg->track;
+    if (dir == 2) {   // both ends, measured from level
+      extreme[i] = isnan(extreme[i]) ? fmaxf(0, v) : fmaxf(extreme[i], v);
+      extremeLow[i] = isnan(extremeLow[i]) ? fminf(0, v) : fminf(extremeLow[i], v);
+      continue;
+    }
     if (isnan(extreme[i]) || (dir > 0 ? v > extreme[i] : v < extreme[i])) {
       extreme[i] = v;
-      if (t.state == ObdState::Live && dir > 0) peaksDirty = true;
+      if (t.state == ObdState::Live && dir == 1) peaksDirty = true;
     }
   }
   if (peaksDirty && millis() - peaksSavedAt >= PEAK_SAVE_MS) savePeaks();
   moveExtremeNeedles();
-  const Tilt lean = imu_tilt();
-  trackTilt(lean);
+  const bool leanOk = lean.ok && lean.calibrated;
+  if (leanOk) {   // pitch's furthest each way, from level
+    face.pitchHigh = isnan(face.pitchHigh) ? fmaxf(0, lean.pitch) : fmaxf(face.pitchHigh, lean.pitch);
+    face.pitchLow = isnan(face.pitchLow) ? fminf(0, lean.pitch) : fminf(face.pitchLow, lean.pitch);
+  }
 
   if (page == PAGE_SETTINGS) {
     updateSettings();
-    return;
-  }
-  if (page == PAGE_TILT) {
-    updateTilt(lean);
     return;
   }
 
@@ -632,7 +710,16 @@ void ui_update(const Telemetry &t) {
   const char *status = statusFor(t, buf, sizeof buf);
   char held[32];
   const Gauge &g = gauges[page];
-  if (g.cfg->track && !isnan(extreme[page]) && (live || page == PAGE_VOLTS)) {
+  if (g.cfg->track == 2) {   // the clinometer: the sensor's state, then how far it has gone each way
+    held[0] = 0;
+    if (!lean.ok) status = "Motion sensor not found";
+    else if (!lean.calibrated) status = "Set level on the Wi-Fi page";
+    else {
+      if (!isnan(extreme[page]))
+        snprintf(held, sizeof held, "L %d R %d  DN %d UP %d", (int)lroundf(-extremeLow[page]), (int)lroundf(extreme[page]), (int)lroundf(-face.pitchLow), (int)lroundf(face.pitchHigh));
+      status = held;
+    }
+  } else if (g.cfg->track && !isnan(extreme[page]) && (live || page == PAGE_VOLTS)) {
     char num[16];
     snprintf(num, sizeof num, g.cfg->fmt, extreme[page]);
     snprintf(held, sizeof held, "%s %s%s", g.cfg->track > 0 ? "PEAK" : "LOW", num, t.state == ObdState::Simulated ? "  (SIM)" : "");
@@ -641,12 +728,20 @@ void ui_update(const Telemetry &t) {
   float v = 0;
   const bool ok = reading(page, t, v);
   setGauge(gauges[page], ok, v, warning(page, t, s), status);
+  if (page == PAGE_TILT) {
+    char num[8];
+    snprintf(num, sizeof num, "%.0f", roundf(lean.pitch) + 0.0f);
+    setText(face.pitch, leanOk ? num : "--");
+    setColor(face.pitch, leanOk && fabsf(lean.pitch) >= s.pitchWarnDeg ? RED : TEXT_PEACH);
+    setColor(gauges[page].value, leanOk && fabsf(lean.roll) >= s.rollWarnDeg ? RED : TEXT_MINT);   // each number warns on its own
+    updateFace(leanOk ? lean.roll : 0, leanOk ? lean.pitch : 0, isnan(face.pitchHigh) ? 0 : face.pitchHigh, isnan(face.pitchLow) ? 0 : -face.pitchLow);
+  }
 }
 
 void ui_applySettings() {
   for (uint8_t i = 0; i < PAGE_COUNT; i++) applyBands(gauges[i]);
   updateDots();
-  tilt.shownRoll = INT_MIN;   // redraw the clinometer colours at the new limit
+  face.shownWarn = INT_MIN;   // redraw the pitch ladder's red lines at the new limit
   if (page != PAGE_SETTINGS && !shown(page) && !(settings().warnHidden && warned[page])) showPage(visibleFrom(page));   // the page on screen was just switched off
 }
 
@@ -692,21 +787,15 @@ void ui_brightness(int dir) {
 }
 
 // A press held on a gauge that tracks a peak or low starts that reading over;
-// on the clinometer it clears the four maximums.
+// on the roll and pitch gauges it clears both ends.
 void ui_hold() {
   if (page == PAGE_SETTINGS) return;
-  if (page == PAGE_TILT) {
-    resetTiltMax();
-    toastText = "Maximums reset";
-    toastColor = WHITE;
-    toastUntil = millis() + 3000;
-    return;
-  }
   const int8_t dir = gauges[page].cfg->track;
   if (!dir) return;
-  extreme[page] = NAN;
-  if (dir > 0) savePeaks();
-  toastText = dir > 0 ? "Peak reset" : "Low reset";
+  extreme[page] = extremeLow[page] = NAN;
+  if (page == PAGE_TILT) face.pitchHigh = face.pitchLow = NAN;
+  if (dir == 1) savePeaks();
+  toastText = dir == 2 ? "Maximums reset" : dir > 0 ? "Peak reset" : "Low reset";
   toastColor = WHITE;
   toastUntil = millis() + 3000;
 }

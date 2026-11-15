@@ -9,6 +9,8 @@
 void webconfig_start();
 void webconfig_stop();
 bool webconfig_active();
+bool webconfig_waitingForClient();  // the access point is up and nothing has joined yet (for at most a minute)
+int webconfig_updatePercent();  // 0 to 100 while a firmware update is arriving over Wi-Fi, otherwise -1
 
 uint32_t webconfig_secondsLeft();
 const char *webconfig_ssid();
