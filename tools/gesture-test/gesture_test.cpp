@@ -27,8 +27,8 @@ int main() {
     {"tap with lift report", hold(5, 200, 200) + lift(200, 200), "Tap"},
     {"tap ended by report gap", hold(5, 200, 200), "Tap"},
     {"tap with jitter", drag(200, 200, 212, 190, 5), "Tap"},
-    {"long press (hold on the way)", hold(120, 200, 200) + lift(200, 200), "Hold,LongPress"},
-    {"long press then gap", hold(120, 200, 200), "Hold,LongPress"},
+    {"long press (nothing is reset on the way)", hold(120, 200, 200) + lift(200, 200), "LongPress"},
+    {"long press then gap", hold(120, 200, 200), "LongPress"},
     {"swipe is not a tap", drag(320, 200, 100, 210, 10) + lift(100, 210), "None"},
     {"swipe down", drag(200, 80, 210, 330, 10), "SwipeDown"},
     {"swipe up", drag(200, 330, 190, 80, 10), "SwipeUp"},
@@ -41,6 +41,11 @@ int main() {
     {"two taps far apart", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(40, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,Tap"},
     {"double tap", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,DoubleTap"},
     {"tap then hold is just a tap and a hold", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(40, 200, 200) + lift(200, 200), "Tap,Hold"},
+    {"slow double tap", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(15, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,DoubleTap"},
+    {"deliberate double tap, 450 ms between taps", hold(5, 200, 200) + lift(200, 200) + std::vector<Sample>(22, {false,false,0,0}) + hold(5, 150, 150) + lift(150, 150), "Tap,DoubleTap"},
+    {"double tap, no lift reports (ended by report gaps)", hold(4, 200, 200) + std::vector<Sample>(12, {false,false,0,0}) + hold(4, 150, 150), "Tap,DoubleTap"},
+    {"two taps just too far apart", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(40, {false,false,0,0}) + hold(4, 200, 200) + lift(200, 200), "Tap,Tap"},
+    {"hold ends a press at 700 ms", hold(35, 200, 200) + lift(200, 200), "Hold"},
     {"triple tap", hold(4, 200, 200) + lift(200, 200) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150) + std::vector<Sample>(5, {false,false,0,0}) + hold(4, 150, 150) + lift(150, 150), "Tap,DoubleTap,Tap"},
   };
   int fails = 0;

@@ -34,7 +34,7 @@ bool primed = false;
 volatile bool levelRequested = false;
 
 bool calibrated = false;
-Vec fwd = {0, 0, 0}, left = {0, 0, 0};  // the car's forward and left axes, in the chip's frame
+Vec fwd = {0, 0, 0}, left = {0, 0, 0}, upAxis = {0, 0, 0};  // the car's forward, left and up axes, in the chip's frame
 
 bool writeReg(uint8_t reg, uint8_t val) {
   Wire.beginTransmission(addr);
@@ -59,6 +59,7 @@ bool deriveAxes(Vec up) {
   const Vec normal = {0, 0, TILT_Z_OUT_OF_SCREEN > 0 ? 1.0f : -1.0f};
   const Vec flat = normal + (-dot(normal, up)) * up;
   if (len(flat) < 0.2f) return false;  // lying flat: no way to tell which way the screen faces
+  upAxis = up;
   const Vec nh = unit(flat);
   const Vec p = cross(up, nh);
   const float a = TILT_YAW_DEG * DEG_TO_RAD;
@@ -137,7 +138,9 @@ Tilt imu_tilt() {
   if (!t.ok || !calibrated) return t;
   const Vec up = unit(filt);
   t.pitch = asinf(constrain(dot(up, fwd), -1.0f, 1.0f)) * RAD_TO_DEG;   // forward axis rising = nose up
-  t.roll = asinf(constrain(dot(up, left), -1.0f, 1.0f)) * RAD_TO_DEG;   // left side rising = leaning right
+  // Roll goes the whole way round: how far gravity has swung from the car's up toward its left, so
+  // leaning right is positive and upside down reads 180 rather than folding back to 0.
+  t.roll = atan2f(dot(up, left), dot(up, upAxis)) * RAD_TO_DEG;
   return t;
 }
 
