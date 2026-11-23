@@ -79,13 +79,13 @@ String render(const Settings &s, const char *note) {
          ".lim em{min-width:1.6rem;text-align:left;white-space:nowrap}"
          "td input[type=number]{width:4.2rem}"
          ".none{color:#555}"
-         "td.mv{touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}"
-         ".ar{color:#777;font-size:1.1rem;margin-right:.35rem;vertical-align:middle}"
+         "td.mv{user-select:none;-webkit-user-select:none}"
+         ".ar{color:#777;font-size:1.1rem;display:inline-block;padding:.7rem .5rem .7rem .3rem;margin:-.7rem .1rem -.7rem -.3rem;touch-action:none;cursor:grab;vertical-align:middle}"
          "tr.drag td{background:#2a2a2a}"
          // The table has five columns; this keeps it inside a 375 px phone.
-         "body{padding:12px}th,td{padding-left:.12rem;padding-right:.12rem}th{font-size:.62rem;letter-spacing:.03em}"
+         "body{padding:12px 28px 12px 12px}th,td{padding-left:.12rem;padding-right:.12rem}th{font-size:.62rem;letter-spacing:.03em}"
          "td input[type=number]{width:4rem;padding:.35rem .3rem;-moz-appearance:textfield;appearance:textfield}td input[type=number]::-webkit-inner-spin-button,td input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}td input[type=radio],td input[type=checkbox]{width:1.2rem;height:1.2rem}"
-         ".nm{display:inline-block;vertical-align:middle;max-width:calc(100% - 1.7rem);font-size:.9rem}.ar{margin-right:.25rem}.lim{gap:.2rem}.lim em{min-width:1.6rem;font-size:.78rem}"
+         ".nm{display:inline-block;vertical-align:middle;max-width:calc(100% - 1.7rem);font-size:.9rem}.lim{gap:.2rem}.lim em{min-width:1.6rem;font-size:.78rem}"
          "td input:disabled{opacity:.25}"
          "button.ghost.arm{background:#7a2c2c;color:#fff;border-color:#a33}"
          "#toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);padding:.7rem 1.3rem;"
@@ -109,7 +109,7 @@ String render(const Settings &s, const char *note) {
   }
 
   o += F("<form method=POST action=/save data-toast=\"Saved\"><h2>Gauges</h2><table>"
-         "<tr><th>Gauge (hold and drag to reorder)<th>Warns at<th>Alert<th>Show<th>Start on</tr>");
+         "<tr><th>Gauge (drag the grip to reorder)<th>Warns at<th>Alert<th>Show<th>Start on</tr>");
   o += F("<tr><td colspan=4>The last one I tapped to<td><input type=radio name=start value=");
   o += String((int)START_LAST);
   o += s.startPage == START_LAST ? F(" checked>") : F(">");
@@ -222,8 +222,8 @@ String render(const Settings &s, const char *note) {
          "x.send(new FormData(f))}"
          "function rows(){return Array.prototype.slice.call(document.querySelectorAll('tr[data-g]'))}"
          "var dragRow=null;"
-         "document.addEventListener('pointerdown',function(e){var h=e.target.closest('td.mv');if(!h||e.target.closest('button'))return;"
-         "dragRow=h.parentNode;dragRow.className='drag';h.setPointerCapture(e.pointerId)});"
+         "document.addEventListener('pointerdown',function(e){var h=e.target.closest('.ar');if(!h)return;"
+         "dragRow=h.closest('tr');dragRow.className='drag';h.setPointerCapture(e.pointerId)});"
          "document.addEventListener('pointermove',function(e){if(!dragRow)return;var all=rows(),i=all.indexOf(dragRow),p=all[i-1],n=all[i+1];"
          "if(p){var a=p.getBoundingClientRect();if(e.clientY<a.top+a.height/2)p.parentNode.insertBefore(dragRow,p)}"
          "if(n){var c=n.getBoundingClientRect();if(e.clientY>c.top+c.height/2)n.parentNode.insertBefore(n,dragRow)}});"
