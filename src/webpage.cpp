@@ -85,8 +85,8 @@ String render(const Settings &s, const char *note) {
          "tr.drag td{background:#2a2a2a}"
          // The table has five columns; this keeps it inside a 375 px phone.
          "body{padding:12px}th,td{padding-left:.12rem;padding-right:.12rem}th{font-size:.62rem;letter-spacing:.03em}"
-         "td input[type=number]{width:3.5rem;padding:.35rem}td input[type=radio],td input[type=checkbox]{width:1.2rem;height:1.2rem}"
-         ".ar{margin-left:.25rem}.lim{gap:.15rem}.lim em{min-width:1.2rem;font-size:.72rem}"
+         "td input[type=number]{width:4rem;padding:.35rem .3rem;-moz-appearance:textfield;appearance:textfield}td input[type=number]::-webkit-inner-spin-button,td input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}td input[type=radio],td input[type=checkbox]{width:1.2rem;height:1.2rem}"
+         ".ar{margin-left:.25rem}.lim{gap:.2rem}.lim em{min-width:1.6rem;font-size:.78rem}"
          "td input:disabled{opacity:.25}"
          "button.ghost.arm{background:#7a2c2c;color:#fff;border-color:#a33}"
          "#toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);padding:.7rem 1.3rem;"
