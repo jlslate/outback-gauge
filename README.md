@@ -34,7 +34,7 @@ it does is also a touch gesture.
 | Coolant (°F) | PID 0x05 |
 | Oil temperature (°F) | PID 0x5C, which this car reports |
 | Intake air (°F) | PID 0x0F |
-| Altitude (ft) | PID 0x33 barometric pressure, turned into height with the standard atmosphere. The car updates its barometer slowly, so weather shifts it a few hundred feet |
+| Altitude (ft) | PID 0x33 barometric pressure, turned into height with the standard atmosphere. Carries a peak needle. The car updates its barometer slowly, so weather shifts it a few hundred feet |
 | Speed (mph) | PID 0x0D, converted from km/h; carries a peak needle |
 | Tachometer (rpm) | PID 0x0C; carries a peak needle |
 | Fuel (%) | PID 0x2F tank level, smoothed; warns below a set level. Not every car reports it, and this one is untested |

@@ -66,7 +66,7 @@ const GaugeCfg FUEL = {"FUEL", "%", "%.0f", 0, 100, 1, 11, 2, {{0, 0, RED, &Sett
 // The clinometer: roll is an ordinary dial (left of centre is a lean to the left, with a red band past
 // each warning limit) with the artificial horizon for pitch in a window in the middle (see makeTilt).
 const GaugeCfg TILT = {"", "", "%.0f", -45, 45, 1, 19, 3, {{-45, 0, RED, &Settings::rollWarnDeg, false, -1}, {0, 45, RED, &Settings::rollWarnDeg}}, Focus::None, TEXT_MINT, 2};
-const GaugeCfg ALTITUDE = {"ALTITUDE", "ft", "%.0f", 0, 12000, 1, 13, 2, {{}, {}}, Focus::None, TEXT_PURPLE, 0};
+const GaugeCfg ALTITUDE = {"ALTITUDE", "ft", "%.0f", 0, 12000, 1, 13, 2, {{}, {}}, Focus::None, TEXT_PURPLE, 1};
 const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts, TEXT_GREEN, -1};
 
 struct Gauge {
