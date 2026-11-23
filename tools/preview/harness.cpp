@@ -70,14 +70,14 @@ int main() {
   t.speedMph = 96; t.rpm = 5400; t.fuelPct = 38; t.speedAt = t.rpmAt = t.fuelAt = s;
   ui_update(t);
   t.speedMph = 63; t.rpm = 2300;
-  t.boostPsi = 12.4f; t.loadPct = 64; t.coolantF = 203; t.oilF = 221; t.intakeF = 97; t.volts = 14.2f;
-  t.loadAt = t.coolantAt = t.oilAt = t.intakeAt = t.voltsAt = s;
+  t.boostPsi = 12.4f; t.coolantF = 203; t.oilF = 221; t.intakeF = 97; t.volts = 14.2f;
+  t.coolantAt = t.oilAt = t.intakeAt = t.voltsAt = s;
 
   fakeTilt.ok = fakeTilt.calibrated = true;
   fakeTilt.roll = 14; fakeTilt.pitch = 9; ui_update(t);          // the maximums
   fakeTilt.roll = -11; fakeTilt.pitch = -6; ui_update(t);
   fakeTilt.roll = 12; fakeTilt.pitch = 5;
-  for (int page = 0; page < 10; page++) {
+  for (int page = 0; page < 9; page++) {
     ui_update(t); capture(page); ui_nextPage();
   }
   // Boost page again while still searching for the adapter.

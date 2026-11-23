@@ -10,7 +10,7 @@ namespace {
 // Stored as one blob rather than a key per field: the whole struct round-trips
 // in two NVS calls, and a version mismatch after a firmware change falls back
 // to defaults instead of leaving half the fields stale. Bump on any layout change.
-constexpr uint16_t LAYOUT = 11;
+constexpr uint16_t LAYOUT = 13;
 
 struct Stored {
   uint16_t layout;
@@ -116,9 +116,77 @@ struct StoredV10 {
   SettingsV10 s;
 };
 
-// Everything carries over; the new options start at their defaults.
-Settings fromV10(const SettingsV10 &o) {
+// Layout 12, before the light theme.
+struct SettingsV12 {
+  uint8_t backlight;
+  float boostWarnPsi, coolantWarnF, oilWarnF, intakeWarnF, voltsLowWarn, voltsHighWarn;
+  bool autoRotate;
+  float autoRotateSecs;
+  uint16_t pageMask;
+  uint8_t startPage;
+  float speedWarnMph, rpmWarn, fuelWarnPct, rollWarnDeg, pitchWarnDeg;
+  bool warnHidden;
+  uint8_t order[MAX_GAUGES];
+  uint16_t alertMask;
+  bool stayOnWarning;
+};
+
+struct StoredV12 {
+  uint16_t layout;
+  SettingsV12 s;
+};
+
+// Everything carries over; the theme starts at its default.
+Settings fromV12(const SettingsV12 &o) {
   Settings s = settings_defaults();
+  memcpy(&s, &o, sizeof o);   // the new field comes last, so the start of the struct is the same
+  return s;
+}
+
+// Layout 11, when engine load was page 1 (so every later page was one higher).
+struct SettingsV11 {
+  uint8_t backlight;
+  float boostWarnPsi, coolantWarnF, oilWarnF, intakeWarnF, voltsLowWarn, voltsHighWarn;
+  bool autoRotate;
+  float autoRotateSecs;
+  uint16_t pageMask;
+  uint8_t startPage;
+  float speedWarnMph, rpmWarn, fuelWarnPct, rollWarnDeg, pitchWarnDeg;
+  bool warnHidden;
+  uint8_t order[MAX_GAUGES];
+  uint16_t alertMask;
+  bool stayOnWarning;
+};
+
+struct StoredV11 {
+  uint16_t layout;
+  SettingsV11 s;
+};
+
+// Engine load is gone: its page, its bit in the masks and its place in the order
+// drop out, and every page after it moves down one.
+SettingsV12 v12FromV11(const SettingsV11 &o) {
+  SettingsV12 s{};
+  s.backlight = o.backlight;
+  s.boostWarnPsi = o.boostWarnPsi, s.coolantWarnF = o.coolantWarnF, s.oilWarnF = o.oilWarnF;
+  s.intakeWarnF = o.intakeWarnF, s.voltsLowWarn = o.voltsLowWarn, s.voltsHighWarn = o.voltsHighWarn;
+  s.autoRotate = o.autoRotate, s.autoRotateSecs = o.autoRotateSecs;
+  s.speedWarnMph = o.speedWarnMph, s.rpmWarn = o.rpmWarn, s.fuelWarnPct = o.fuelWarnPct;
+  s.rollWarnDeg = o.rollWarnDeg, s.pitchWarnDeg = o.pitchWarnDeg, s.warnHidden = o.warnHidden;
+  s.stayOnWarning = o.stayOnWarning;
+  auto dropBit = [](uint16_t m) { return (uint16_t)((m & 1) | ((m >> 2) << 1)); };
+  s.pageMask = dropBit(o.pageMask);
+  s.alertMask = dropBit(o.alertMask);
+  s.startPage = o.startPage == START_LAST ? o.startPage : o.startPage == 1 ? 0 : o.startPage > 1 ? o.startPage - 1 : o.startPage;
+  int n = 0;
+  for (int i = 0; i < 10; i++)
+    if (o.order[i] != 1) s.order[n++] = o.order[i] > 1 ? o.order[i] - 1 : o.order[i];
+  return s;
+}
+
+// Everything carries over; the new options start at their defaults.
+SettingsV11 v11FromV10(const SettingsV10 &o) {
+  SettingsV11 s{};
   s.backlight = o.backlight;
   s.boostWarnPsi = o.boostWarnPsi, s.coolantWarnF = o.coolantWarnF, s.oilWarnF = o.oilWarnF;
   s.intakeWarnF = o.intakeWarnF, s.voltsLowWarn = o.voltsLowWarn, s.voltsHighWarn = o.voltsHighWarn;
@@ -128,6 +196,8 @@ Settings fromV10(const SettingsV10 &o) {
   s.speedWarnMph = o.speedWarnMph, s.rpmWarn = o.rpmWarn, s.fuelWarnPct = o.fuelWarnPct;
   s.rollWarnDeg = o.rollWarnDeg, s.pitchWarnDeg = o.pitchWarnDeg, s.warnHidden = o.warnHidden;
   memcpy(s.order, o.order, sizeof s.order);
+  s.alertMask = 0x3FF;
+  s.stayOnWarning = true;
   return s;
 }
 
@@ -148,8 +218,8 @@ SettingsV9 v9FromV8(const SettingsV8 &o) {
 }
 
 // Layout 9 had the same pages and a shorter order array, so it copies straight across.
-Settings fromV9(const SettingsV9 &o) {
-  Settings s = settings_defaults();
+SettingsV10 v10FromV9(const SettingsV9 &o) {
+  SettingsV10 s{};
   s.backlight = o.backlight;
   s.boostWarnPsi = o.boostWarnPsi, s.coolantWarnF = o.coolantWarnF, s.oilWarnF = o.oilWarnF;
   s.intakeWarnF = o.intakeWarnF, s.voltsLowWarn = o.voltsLowWarn, s.voltsHighWarn = o.voltsHighWarn;
@@ -233,10 +303,11 @@ Settings settings_defaults() {
   s.warnHidden = WARN_HIDDEN;
   s.alertMask = ALERT_MASK;
   s.stayOnWarning = STAY_ON_WARNING;
-  // Alphabetical by the gauge's name: battery, boost, clinometer, coolant, engine
-  // load, fuel, intake air, oil temperature, speed, tach (the numbers are the
+  s.lightTheme = LIGHT_THEME;
+  // Alphabetical by the gauge's name: battery, boost, clinometer, coolant,
+  // fuel, intake air, oil temperature, speed, tach (the numbers are the
   // pages in ui.cpp).
-  static const uint8_t alphabetical[GAUGE_PAGES] = {5, 0, 9, 2, 1, 8, 4, 3, 6, 7};
+  static const uint8_t alphabetical[GAUGE_PAGES] = {4, 0, 8, 1, 7, 3, 2, 5, 6};
   memset(s.order, 0, sizeof s.order);
   memcpy(s.order, alphabetical, sizeof alphabetical);
   return s;
@@ -251,7 +322,7 @@ void settings_load() {
 
   Preferences prefs;
   prefs.begin("gauge", true);
-  uint8_t raw[sizeof(Stored) + sizeof(StoredV10) + sizeof(StoredV9) + sizeof(StoredV8) + sizeof(StoredV7)] = {};   // roomy: getBytes refuses a short buffer
+  uint8_t raw[sizeof(Stored) + sizeof(StoredV12) + sizeof(StoredV11) + sizeof(StoredV10) + sizeof(StoredV9) + sizeof(StoredV8) + sizeof(StoredV7)] = {};   // roomy: getBytes refuses a short buffer
   const size_t n = prefs.getBytes("cfg", raw, sizeof raw);
   prefs.end();
   uint16_t layout = 0;
@@ -265,10 +336,26 @@ void settings_load() {
     Serial.println("[CFG] loaded saved settings");
     return;
   }
+  if (n == sizeof(StoredV12) && layout == 12) {
+    StoredV12 old;
+    memcpy(&old, raw, sizeof old);
+    live = fromV12(old.s);
+    sanitize(live);
+    Serial.println("[CFG] carried over layout 12 settings");
+    return;
+  }
+  if (n == sizeof(StoredV11) && layout == 11) {
+    StoredV11 old;
+    memcpy(&old, raw, sizeof old);
+    live = fromV12(v12FromV11(old.s));
+    sanitize(live);
+    Serial.println("[CFG] carried over layout 11 settings");
+    return;
+  }
   if (n == sizeof(StoredV10) && layout == 10) {
     StoredV10 old;
     memcpy(&old, raw, sizeof old);
-    live = fromV10(old.s);
+    live = fromV12(v12FromV11(v11FromV10(old.s)));
     sanitize(live);
     Serial.println("[CFG] carried over layout 10 settings");
     return;
@@ -276,7 +363,7 @@ void settings_load() {
   if (n == sizeof(StoredV9) && layout == 9) {
     StoredV9 old;
     memcpy(&old, raw, sizeof old);
-    live = fromV9(old.s);
+    live = fromV12(v12FromV11(v11FromV10(v10FromV9(old.s))));
     sanitize(live);
     Serial.println("[CFG] carried over layout 9 settings");
     return;
@@ -284,7 +371,7 @@ void settings_load() {
   if (n == sizeof(StoredV8) && layout == 8) {
     StoredV8 old;
     memcpy(&old, raw, sizeof old);
-    live = fromV9(v9FromV8(old.s));
+    live = fromV12(v12FromV11(v11FromV10(v10FromV9(v9FromV8(old.s)))));
     sanitize(live);
     Serial.println("[CFG] carried over layout 8 settings");
     return;
@@ -296,7 +383,7 @@ void settings_load() {
   if ((layout == 7 && n == sizeof old) || (layout == 6 && n == noOrderBytes) ||
       ((layout == 5 || layout == 4) && n == noLimitsBytes)) {
     memcpy(&old, raw, n);
-    live = fromV9(v9FromV8(v8FromV7(old.s, layout)));
+    live = fromV12(v12FromV11(v11FromV10(v10FromV9(v9FromV8(v8FromV7(old.s, layout))))));
     sanitize(live);
     Serial.printf("[CFG] carried over layout %u settings\n", layout);
   } else if (n) {

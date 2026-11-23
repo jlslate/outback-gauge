@@ -22,6 +22,20 @@ constexpr uint32_t TEXT_GREEN = 0x4CAF50, TEXT_ORANGE = 0xFF9800, TEXT_BLUE = 0x
                    TEXT_YELLOW = 0xFFEB3B, TEXT_PURPLE = 0xBA68C8, TEXT_TEAL = 0x26C6DA, TEXT_LIME = 0xC0CA33, TEXT_SILVER = 0xE0E0E0, TEXT_MINT = 0x80CBC4, TEXT_PEACH = 0xFFAB91;
 #define DEG "\xC2\xB0"
 
+// Dark: black screen, coloured readouts, white ticks, orange needle. Light: white
+// screen with black numbers and needles. Fixed for the run; the settings page
+// restarts the screen to change it.
+struct Theme {
+  uint32_t bg, fg, dim, peak, needle, dotOff;
+  bool light;
+};
+Theme th = {0x000000, WHITE, GREY, WHITE, 0xFF6D00, 0x424242, false};
+
+void setTheme(bool light) {
+  th = light ? Theme{0xFFFFFF, 0x000000, 0x555555, 0x757575, 0x000000, 0xBDBDBD, true}
+             : Theme{0x000000, WHITE, GREY, WHITE, 0xFF6D00, 0x424242, false};
+}
+
 // A coloured arc on the scale. One endpoint can be driven by a setting, so the
 // warning band moves when the threshold is edited; the other stays put.
 struct Band {
@@ -43,7 +57,6 @@ struct GaugeCfg {
 };
 
 const GaugeCfg BOOST = {"BOOST", "psi", "%.1f", -15, 20, 1, 36, 5, {{0, 20, RED, &Settings::boostWarnPsi}, {}}, Focus::Boost, TEXT_ORANGE, 1};
-const GaugeCfg LOAD = {"ENGINE\nLOAD", "%", "%.0f", 0, 100, 1, 11, 2, {{}, {}}, Focus::Load, TEXT_PURPLE, 0};
 const GaugeCfg COOLANT = {"COOLANT", DEG "F", "%.0f", 100, 260, 1, 17, 2, {{100, 140, BLUE}, {0, 260, RED, &Settings::coolantWarnF}}, Focus::Coolant, TEXT_BLUE, 0};
 const GaugeCfg OIL = {"OIL\nTEMP", DEG "F", "%.0f", 100, 300, 1, 21, 5, {{100, 140, BLUE}, {0, 300, RED, &Settings::oilWarnF}}, Focus::Oil, TEXT_PINK, 1};
 const GaugeCfg INTAKE = {"INTAKE\nAIR", DEG "F", "%.0f", 0, 200, 1, 21, 5, {{0, 200, RED, &Settings::intakeWarnF}, {}}, Focus::Intake, TEXT_YELLOW, 1};
@@ -80,7 +93,7 @@ struct SettingsPage {
   lv_obj_t *screen, *caption, *headline, *caption2, *detail, *url, *foot;
 };
 
-enum : uint8_t { PAGE_BOOST, PAGE_LOAD, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_SPEED, PAGE_TACH, PAGE_FUEL, PAGE_TILT, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
+enum : uint8_t { PAGE_BOOST, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_SPEED, PAGE_TACH, PAGE_FUEL, PAGE_TILT, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
 
 Gauge gauges[PAGE_COUNT];
 Face face;
@@ -106,7 +119,7 @@ uint32_t toastColor = GREY;
 
 lv_obj_t *newScreen() {
   lv_obj_t *s = lv_obj_create(nullptr);
-  lv_obj_set_style_bg_color(s, lv_color_black(), 0);
+  lv_obj_set_style_bg_color(s, lv_color_hex(th.bg), 0);
   lv_obj_clear_flag(s, LV_OBJ_FLAG_SCROLLABLE);
   return s;
 }
@@ -192,7 +205,7 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   g.screen = newScreen();
 
   // Created before the meter so the needle sweeps over it.
-  lv_obj_t *title = label(g.screen, &lv_font_montserrat_36, cfg.color, 0, -72);
+  lv_obj_t *title = label(g.screen, &lv_font_montserrat_36, th.light ? th.fg : cfg.color, 0, -72);
   lv_obj_set_style_text_line_space(title, -4, 0);
   lv_label_set_text(title, cfg.title);
 
@@ -202,7 +215,7 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   lv_obj_set_style_bg_opa(g.meter, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(g.meter, 0, 0);
   lv_obj_set_style_pad_all(g.meter, 10, 0);
-  lv_obj_set_style_text_color(g.meter, lv_color_white(), LV_PART_TICKS);
+  lv_obj_set_style_text_color(g.meter, lv_color_hex(th.fg), LV_PART_TICKS);
   lv_obj_set_style_text_font(g.meter, &lv_font_montserrat_24, LV_PART_TICKS);
   lv_obj_set_style_bg_color(g.meter, lv_color_hex(0x424242), LV_PART_INDICATOR);  // needle hub
   lv_obj_set_style_size(g.meter, 24, LV_PART_INDICATOR);
@@ -210,7 +223,7 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   // 270 degree sweep starting at the lower left; the gap at the bottom holds the readout.
   lv_meter_scale_t *scale = lv_meter_add_scale(g.meter);
   lv_meter_set_scale_ticks(g.meter, scale, cfg.ticks, 2, 12, lv_color_hex(0x757575));
-  lv_meter_set_scale_major_ticks(g.meter, scale, cfg.majorEvery, 4, 22, lv_color_white(), 14);
+  lv_meter_set_scale_major_ticks(g.meter, scale, cfg.majorEvery, 4, 22, lv_color_hex(th.fg), 14);
   lv_meter_set_scale_range(g.meter, scale, cfg.min * cfg.mul, cfg.max * cfg.mul, 270, 135);
 
   for (int i = 0; i < 2; i++) {
@@ -222,20 +235,20 @@ Gauge makeGauge(const GaugeCfg &cfg) {
   // A thin white needle at the highest (or lowest) reading since the last
   // reset; added first so the live needle is drawn over it.
   if (cfg.track) {
-    g.peakNeedle = lv_meter_add_needle_line(g.meter, scale, 3, lv_color_white(), -24);
+    g.peakNeedle = lv_meter_add_needle_line(g.meter, scale, 3, lv_color_hex(th.peak), -24);
     lv_meter_set_indicator_value(g.meter, g.peakNeedle, cfg.min * cfg.mul);
   }
   if (cfg.track == 2) {
-    g.lowNeedle = lv_meter_add_needle_line(g.meter, scale, 3, lv_color_white(), -24);
+    g.lowNeedle = lv_meter_add_needle_line(g.meter, scale, 3, lv_color_hex(th.peak), -24);
     lv_meter_set_indicator_value(g.meter, g.lowNeedle, cfg.min * cfg.mul);
   }
-  g.needle = lv_meter_add_needle_line(g.meter, scale, 6, lv_color_hex(0xFF6D00), -24);
+  g.needle = lv_meter_add_needle_line(g.meter, scale, 6, lv_color_hex(th.needle), -24);
   lv_meter_set_indicator_value(g.meter, g.needle, cfg.min * cfg.mul);
   if (cfg.mul > 1 || cfg.max >= 1000) lv_obj_add_event_cb(g.meter, scaledTickLabels, LV_EVENT_DRAW_PART_BEGIN, (void *)&cfg);
 
-  g.value = label(g.screen, &font_big, WHITE, 0, 94);
-  lv_label_set_text(label(g.screen, &lv_font_montserrat_24, GREY, 0, 140), cfg.unit);
-  g.status = label(g.screen, &lv_font_montserrat_18, GREY, 0, 165);
+  g.value = label(g.screen, &font_big, th.fg, 0, 94);
+  lv_label_set_text(label(g.screen, &lv_font_montserrat_24, th.dim, 0, 140), cfg.unit);
+  g.status = label(g.screen, &lv_font_montserrat_18, th.dim, 0, 165);
   return g;
 }
 
@@ -304,9 +317,9 @@ Gauge makeTilt(const GaugeCfg &cfg) {
   // makeGauge made one big readout for roll; make it, and a twin for pitch, smaller and side by side.
   lv_obj_set_style_text_font(g.value, &lv_font_montserrat_36, 0);
   lv_obj_align(g.value, LV_ALIGN_CENTER, -50, 114);
-  f.pitch = label(g.screen, &lv_font_montserrat_36, TEXT_PEACH, 50, 114);
-  lv_label_set_text(label(g.screen, &lv_font_montserrat_18, TEXT_MINT, -50, 142), "ROLL " DEG);
-  lv_label_set_text(label(g.screen, &lv_font_montserrat_18, TEXT_PEACH, 50, 142), "PITCH " DEG);
+  f.pitch = label(g.screen, &lv_font_montserrat_36, th.light ? th.fg : TEXT_PEACH, 50, 114);
+  lv_label_set_text(label(g.screen, &lv_font_montserrat_18, th.dim, -50, 142), "ROLL " DEG);
+  lv_label_set_text(label(g.screen, &lv_font_montserrat_18, th.dim, 50, 142), "PITCH " DEG);
   return g;
 }
 
@@ -375,10 +388,10 @@ void setGauge(Gauge &g, bool isFresh, float v, bool warn, const char *status) {
   } else {
     setText(g.value, "--");
   }
-  setColor(g.value, isFresh && warn ? RED : g.cfg->color);
+  setColor(g.value, isFresh && warn ? RED : th.light ? th.fg : g.cfg->color);
   const bool toast = millis() < toastUntil;
   setText(g.status, toast ? toastText : status);
-  setColor(g.status, toast ? toastColor : GREY);
+  setColor(g.status, toast ? toastColor : th.dim);
 }
 
 // ---- settings page ---------------------------------------------------------
@@ -386,13 +399,13 @@ void setGauge(Gauge &g, bool isFresh, float v, bool warn, const char *status) {
 void makeSettings() {
   SettingsPage &p = settingsPage;
   p.screen = newScreen();
-  lv_label_set_text(label(p.screen, &lv_font_montserrat_24, GREY, 0, -120), "SETTINGS");
-  p.caption = label(p.screen, &lv_font_montserrat_18, GREY, 0, -74);
-  p.headline = label(p.screen, &lv_font_montserrat_32, WHITE, 0, -40);
-  p.caption2 = label(p.screen, &lv_font_montserrat_18, GREY, 0, 4);
-  p.detail = label(p.screen, &lv_font_montserrat_32, WHITE, 0, 36);
+  lv_label_set_text(label(p.screen, &lv_font_montserrat_24, th.dim, 0, -120), "SETTINGS");
+  p.caption = label(p.screen, &lv_font_montserrat_18, th.dim, 0, -74);
+  p.headline = label(p.screen, &lv_font_montserrat_32, th.fg, 0, -40);
+  p.caption2 = label(p.screen, &lv_font_montserrat_18, th.dim, 0, 4);
+  p.detail = label(p.screen, &lv_font_montserrat_32, th.fg, 0, 36);
   p.url = label(p.screen, &lv_font_montserrat_24, BLUE, 0, 82);
-  p.foot = label(p.screen, &lv_font_montserrat_18, GREY, 0, 122);
+  p.foot = label(p.screen, &lv_font_montserrat_18, th.dim, 0, 122);
 }
 
 void updateSettings() {
@@ -423,12 +436,12 @@ void makeUpdateOverlay() {
   lv_obj_remove_style_all(o.panel);
   lv_obj_set_size(o.panel, LCD_SIZE, LCD_SIZE);
   lv_obj_set_style_bg_opa(o.panel, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(o.panel, lv_color_black(), 0);
+  lv_obj_set_style_bg_color(o.panel, lv_color_hex(th.bg), 0);
   lv_obj_add_flag(o.panel, LV_OBJ_FLAG_HIDDEN);
-  lv_label_set_text(label(o.panel, &lv_font_montserrat_36, AMBER, 0, -70), "UPDATING");
-  o.percent = label(o.panel, &font_big, WHITE, 0, 0);
-  lv_label_set_text(label(o.panel, &lv_font_montserrat_24, GREY, 0, 56), "%");
-  o.note = label(o.panel, &lv_font_montserrat_18, GREY, 0, 100);
+  lv_label_set_text(label(o.panel, &lv_font_montserrat_36, th.light ? th.fg : AMBER, 0, -70), "UPDATING");
+  o.percent = label(o.panel, &font_big, th.fg, 0, 0);
+  lv_label_set_text(label(o.panel, &lv_font_montserrat_24, th.dim, 0, 56), "%");
+  o.note = label(o.panel, &lv_font_montserrat_18, th.dim, 0, 100);
 }
 
 // -1 hides it; 0 to 99 is the upload, 100 the install and restart.
@@ -479,7 +492,7 @@ uint8_t visibleFrom(uint8_t from) {
 void updateDots() {
   for (uint8_t g = 0; g < PAGE_COUNT; g++)
     for (uint8_t i = 0; i < PAGE_COUNT; i++)
-      lv_obj_set_style_bg_color(gauges[g].dots[i], lv_color_hex(i == positionOf(g) ? WHITE : 0x424242), 0);
+      lv_obj_set_style_bg_color(gauges[g].dots[i], lv_color_hex(i == positionOf(g) ? th.fg : th.dotOff), 0);
 }
 
 // The next gauge after p in the chosen order that is switched on.
@@ -511,12 +524,14 @@ bool peaksDirty = false;
 uint32_t peaksSavedAt = 0;
 
 void loadPeaks() {
-  float saved[PAGE_COUNT];
+  float saved[PAGE_COUNT + 1];   // one more than now: saved before engine load was removed (it was entry 1)
   Preferences prefs;
   prefs.begin("gauge", true);
   const size_t n = prefs.getBytes("peaks", saved, sizeof saved);
   prefs.end();
-  if (n != sizeof saved) return;
+  if (n == sizeof saved)
+    for (uint8_t i = 1; i < PAGE_COUNT; i++) saved[i] = saved[i + 1];
+  else if (n != sizeof(float) * PAGE_COUNT) return;
   for (uint8_t i = 0; i < PAGE_COUNT; i++)
     if (gauges[i].cfg->track == 1 && isfinite(saved[i])) extreme[i] = saved[i];
 }
@@ -533,10 +548,10 @@ void savePeaks() {
 }  // namespace
 
 void ui_init() {
+  setTheme(settings().lightTheme);
   for (float &e : extreme) e = NAN;
   for (float &e : extremeLow) e = NAN;
   gauges[PAGE_BOOST] = makeGauge(BOOST);
-  gauges[PAGE_LOAD] = makeGauge(LOAD);
   gauges[PAGE_COOLANT] = makeGauge(COOLANT);
   gauges[PAGE_OIL] = makeGauge(OIL);
   gauges[PAGE_INTAKE] = makeGauge(INTAKE);
@@ -592,7 +607,7 @@ static bool warning(uint8_t p, const Telemetry &t, const Settings &s) {
     case PAGE_FUEL: return fresh(t.fuelAt) && t.fuelPct < s.fuelWarnPct;
     case PAGE_TILT: return tiltWarning;
   }
-  return false;  // engine load has no warning
+  return false;
 }
 
 // A gauge that goes into warning comes up on screen, and while any is in
@@ -662,7 +677,6 @@ static bool reading(uint8_t p, const Telemetry &t, float &v) {
   uint32_t at = 0;
   switch (p) {
     case PAGE_BOOST: v = t.boostPsi, at = t.boostAt; break;
-    case PAGE_LOAD: v = t.loadPct, at = t.loadAt; break;
     case PAGE_COOLANT: v = t.coolantF, at = t.coolantAt; break;
     case PAGE_OIL: v = t.oilF, at = t.oilAt; break;
     case PAGE_INTAKE: v = t.intakeF, at = t.intakeAt; break;
@@ -748,8 +762,8 @@ void ui_update(const Telemetry &t) {
     char num[8];
     snprintf(num, sizeof num, "%.0f", roundf(lean.pitch) + 0.0f);
     setText(face.pitch, leanOk ? num : "--");
-    setColor(face.pitch, leanOk && fabsf(lean.pitch) >= s.pitchWarnDeg ? RED : TEXT_PEACH);
-    setColor(gauges[page].value, leanOk && fabsf(lean.roll) >= s.rollWarnDeg ? RED : TEXT_MINT);   // each number warns on its own
+    setColor(face.pitch, leanOk && fabsf(lean.pitch) >= s.pitchWarnDeg ? RED : th.light ? th.fg : TEXT_PEACH);
+    setColor(gauges[page].value, leanOk && fabsf(lean.roll) >= s.rollWarnDeg ? RED : th.light ? th.fg : TEXT_MINT);   // each number warns on its own
     updateFace(leanOk ? lean.roll : 0, leanOk ? lean.pitch : 0, isnan(face.pitchHigh) ? 0 : face.pitchHigh, isnan(face.pitchLow) ? 0 : -face.pitchLow);
   }
 }
@@ -798,7 +812,7 @@ void ui_brightness(int dir) {
   static char text[24];
   snprintf(text, sizeof text, "Brightness %u%%", pick >= 0 ? s.backlight : settings().backlight);
   toastText = text;
-  toastColor = WHITE;
+  toastColor = th.fg;
   toastUntil = millis() + 3000;
 }
 
@@ -836,7 +850,7 @@ void ui_hold() {
   clearExtremes(page);
   if (dir == 1) savePeaks();
   toastText = dir == 2 ? "Maximums reset" : dir > 0 ? "Peak reset" : "Low reset";
-  toastColor = WHITE;
+  toastColor = th.fg;
   toastUntil = millis() + 3000;
 }
 

@@ -45,11 +45,11 @@ void check(String &o, const char *id, const char *label, bool on) {
 
 // The gauges that keep a peak, low or maximums, with what the reset button calls it; null for
 // the rest. In the order of the pages in ui.cpp, and in step with each gauge's track setting there.
-const char *const PEAK_NAMES[GAUGE_PAGES] = {"Boost peak", nullptr, nullptr, "Oil temperature peak", "Intake air peak", "Battery low",
+const char *const PEAK_NAMES[GAUGE_PAGES] = {"Boost peak", nullptr, "Oil temperature peak", "Intake air peak", "Battery low",
                                              "Speed peak", "Tachometer peak", nullptr, "Clinometer maximums"};
 
 // In the order of the pages in ui.cpp.
-const char *const PAGE_NAMES[GAUGE_PAGES] = {"Boost", "Engine load", "Coolant", "Oil temperature", "Intake air", "Battery", "Speed", "Tachometer", "Fuel", "Clinometer"};
+const char *const PAGE_NAMES[GAUGE_PAGES] = {"Boost", "Coolant", "Oil temperature", "Intake air", "Battery", "Speed", "Tachometer", "Fuel", "Clinometer"};
 
 String render(const Settings &s, const char *note) {
   String o;
@@ -131,28 +131,26 @@ String render(const Settings &s, const char *note) {
          "<button type=button class=mb data-d=1>&#9660;</button></span><td>";
     switch (i) {
       case 0: limit(o, "boost", "min=0 max=20 step=0.5", s.boostWarnPsi, 1, "psi"); break;
-      case 2: limit(o, "cool", "min=150 max=260 step=1", s.coolantWarnF, 0, "&deg;F"); break;
-      case 3: limit(o, "oil", "min=180 max=300 step=1", s.oilWarnF, 0, "&deg;F"); break;
-      case 4: limit(o, "intake", "min=60 max=200 step=1", s.intakeWarnF, 0, "&deg;F"); break;
-      case 5:
+      case 1: limit(o, "cool", "min=150 max=260 step=1", s.coolantWarnF, 0, "&deg;F"); break;
+      case 2: limit(o, "oil", "min=180 max=300 step=1", s.oilWarnF, 0, "&deg;F"); break;
+      case 3: limit(o, "intake", "min=60 max=200 step=1", s.intakeWarnF, 0, "&deg;F"); break;
+      case 4:
         limit(o, "vlo", "min=10 max=14 step=0.1", s.voltsLowWarn, 1, "V lo");
         limit(o, "vhi", "min=13 max=16 step=0.1", s.voltsHighWarn, 1, "V hi");
         break;
-      case 6: limit(o, "speed", "min=20 max=160 step=1", s.speedWarnMph, 0, "mph"); break;
-      case 7: limit(o, "rpm", "min=3000 max=7000 step=100", s.rpmWarn, 0, "rpm"); break;
-      case 8: limit(o, "fuel", "min=5 max=50 step=1", s.fuelWarnPct, 0, "% low"); break;
-      case 9:
+      case 5: limit(o, "speed", "min=20 max=160 step=1", s.speedWarnMph, 0, "mph"); break;
+      case 6: limit(o, "rpm", "min=3000 max=7000 step=100", s.rpmWarn, 0, "rpm"); break;
+      case 7: limit(o, "fuel", "min=5 max=50 step=1", s.fuelWarnPct, 0, "% low"); break;
+      case 8:
         limit(o, "roll", "min=5 max=45 step=1", s.rollWarnDeg, 0, "&deg; roll");
         limit(o, "pitch", "min=5 max=45 step=1", s.pitchWarnDeg, 0, "&deg; pitch");
         break;
       default: o += "<span class=none>none</span>";
     }
     o += "<td>";
-    if (i != 1) {   // engine load has no warning to switch off
-      o += "<input type=checkbox name=al";
-      o += String(i);
-      o += s.alertMask & (1u << i) ? " checked>" : ">";
-    }
+    o += "<input type=checkbox name=al";
+    o += String(i);
+    o += s.alertMask & (1u << i) ? " checked>" : ">";
     o += "<td><input type=checkbox name=pg";
     o += String(i);
     o += s.pageMask & (1u << i) ? " checked>" : ">";
@@ -186,6 +184,7 @@ String render(const Settings &s, const char *note) {
   o += F(" oninput=\"this.nextElementSibling.textContent=this.value+'%'\"><em>");
   o += String((int)s.backlight);
   o += F("%</em></label>");
+  check(o, "light", "White background, black numbers and needles (restarts the screen)", s.lightTheme);
 
   o += F("<button>Save</button></form>"
          "<form method=POST action=/level data-toast=\"Level set\" data-ask=\"Tap again to set level\" "

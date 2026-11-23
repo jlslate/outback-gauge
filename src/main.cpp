@@ -64,10 +64,16 @@ void loop() {
   pollButton();
   // Settings edited over Wi-Fi land on the web task; adopt them here, where
   // nothing is mid-frame.
+  static const bool bootLight = settings().lightTheme;
+  static uint32_t restartAt = 0;
   if (settings_apply()) {
     board_setBacklight(settings().backlight);
     ui_applySettings();
+    // The theme is baked into the screens when they are built, so it takes a
+    // restart; the pause lets the page's reply go out first.
+    if (settings().lightTheme != bootLight && !restartAt) restartAt = millis() + 1500;
   }
+  if (restartAt && (int32_t)(millis() - restartAt) >= 0) ESP.restart();
   if (now - lastImu >= 20) {
     lastImu = now;
     imu_update();

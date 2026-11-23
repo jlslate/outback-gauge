@@ -23,11 +23,11 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 // picture is sideways the wrong way, try 270.
 #define DISPLAY_MOUNT_DEG 90
 
-// Which gauge the screen comes up on at power-up (0 boost, 1 engine load, 2 coolant,
-// 3 oil temperature, 4 intake air, 5 battery, 6 speed, 7 rpm, 8 fuel, 9 clinometer; 255 = the last one you tapped to),
-// and which gauges are shown at all (one bit each, in that order; 0x3FF is all ten).
+// Which gauge the screen comes up on at power-up (0 boost, 1 coolant,
+// 2 oil temperature, 3 intake air, 4 battery, 5 speed, 6 rpm, 7 fuel, 8 clinometer; 255 = the last one you tapped to),
+// and which gauges are shown at all (one bit each, in that order; 0x1FF is all nine).
 #define START_PAGE 255
-#define PAGE_MASK 0x3FF
+#define PAGE_MASK 0x1FF
 
 // Clinometer. The pod is turned this many degrees toward the driver (left-hand
 // drive), and the chip's z axis points out of the screen (-1 if it points in).
@@ -57,8 +57,13 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 
 // Which gauges' warnings pull the screen over (one bit each, in the page order above),
 // and whether auto-rotate waits on a gauge that has warned or carries on.
-#define ALERT_MASK 0x3FF
+#define ALERT_MASK 0x1FF
 #define STAY_ON_WARNING 1
+
+// White background with black numbers and needles instead of black with colour.
+#ifndef LIGHT_THEME
+#define LIGHT_THEME 0
+#endif
 
 // Settings access point. Compile-time only: it has to be reachable before you
 // can change anything. How long it stays up with no requests before shutting
