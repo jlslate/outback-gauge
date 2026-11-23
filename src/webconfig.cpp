@@ -107,15 +107,6 @@ void handleLevel() {
   server.send(200, "text/html", webpage_render(settings(), nullptr));
 }
 
-// Clears one gauge's peak, low or maximums (g=<page number>) or all of them (g=all).
-void handleResetPeaks() {
-  keepAlive();
-  const String g = server.arg("g");
-  const uint16_t mask = g == "all" ? 0xFFFF : (uint16_t)(1u << constrain(g.toInt(), 0, 15));
-  ui_resetPeaks(mask);
-  server.send(200, "text/html", webpage_render(settings(), nullptr));
-}
-
 // Firmware upload: the image streams straight into the next app slot, and the
 // gauge restarts onto it only once the whole file has been written and checked.
 // A file that isn't a firmware image for this chip is refused before anything
@@ -203,7 +194,6 @@ void task(void *) {
     server.on("/save", HTTP_POST, handleSave);
     server.on("/defaults", HTTP_POST, handleDefaults);
     server.on("/level", HTTP_POST, handleLevel);
-    server.on("/resetpeaks", HTTP_POST, handleResetPeaks);
     server.on("/update", HTTP_POST, handleUpdate, handleUpdateChunk);
     server.on("/reboot", HTTP_POST, handleReboot);
     server.on("/stop", HTTP_POST, handleStop);

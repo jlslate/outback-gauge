@@ -21,8 +21,7 @@ The gauges cycle on their own every 3 seconds (adjustable, or off, on the
 settings page). **Tap** to go to the next one early; **double tap** to turn auto-rotate on or off
 (the status line says which, and the page stays where it was). Boost, oil temperature, intake air, speed and rpm carry a thin white needle at the highest
 reading since the last reset, and battery one at the lowest (the status line
-says "PEAK" or "LOW" with the number). **Press and hold** (about half a second) on one of
-those gauges to start it over. Boost, oil, intake, speed and rpm peaks survive a reboot (saved at most once a minute while driving); the battery low starts over each time, since cranking sets it. **Swipe up or down** for a brighter or dimmer screen (5, 20, 40, 60, 80 or 100%). The dots along the bottom show where you are. The Wi-Fi page chooses which
+says "PEAK" or "LOW" with the number). They start over every time the gauge powers up. **Press and hold** (about half a second) anywhere to switch between the dark theme and the white one (white background, black numbers and needles); it is saved, and the Wi-Fi page has the same checkbox. **Swipe up or down** for a brighter or dimmer screen (5, 20, 40, 60, 80 or 100%). The dots along the bottom show where you are. The Wi-Fi page chooses which
 gauge the screen starts on (or "the last one I tapped to") and which gauges are
 shown at all (an Alert tick per gauge switches its warning off, so it only turns red and never pulls the screen over; a hidden gauge can still come up when it warns, if you tick that option), and the order they come in: drag a row by its name (or use its arrows) and save. The BOOT button does the same from the bench — a
 short press moves to the next page, holding it opens Wi-Fi — but
@@ -38,7 +37,7 @@ it does is also a touch gesture.
 | Speed (mph) | PID 0x0D, converted from km/h; carries a peak needle |
 | Tachometer (rpm) | PID 0x0C; carries a peak needle |
 | Fuel (%) | PID 0x2F tank level, smoothed; warns below a set level. Not every car reports it, and this one is untested |
-| Clinometer (°) | The board's accelerometer. Roll is the dial, with white needles at the furthest lean each way; pitch is the window in the middle, with white lines at the furthest nose up and down. Park level and use **Set clinometer level** on the Wi-Fi page once; a hold resets the maximums |
+| Clinometer (°) | The board's accelerometer. Roll is the dial, with white needles at the furthest lean each way; pitch is the window in the middle, with white lines at the furthest nose up and down. Park level and use **Set clinometer level** on the Wi-Fi page once |
 | Battery (V) | `ATRV`, measured by the adapter; works with the engine off |
 
 **Press and hold for two seconds** on any of these opens the Wi-Fi settings page and starts the

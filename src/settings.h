@@ -39,7 +39,7 @@ struct Settings {
 
   uint16_t alertMask;   // bit per gauge page: set = its warning pulls the screen over (clear = it only turns red)
   bool stayOnWarning;   // true: auto-rotate waits while a gauge warns; false: it carries on
-  bool lightTheme;      // white background with black numbers and needles; the screen restarts to change it
+  bool lightTheme;      // white background with black numbers and needles; a press and hold on a gauge flips it
 };
 
 constexpr uint8_t START_LAST = 255;

@@ -5,6 +5,7 @@
 struct Preferences {
   bool begin(const char*, bool = false) { return true; }
   void end() {}
+  bool remove(const char*) { return false; }
   uint8_t getUChar(const char*, uint8_t d) { return d; }
   void putUChar(const char*, uint8_t) {}
   size_t getBytes(const char*, void*, size_t) { return 0; }

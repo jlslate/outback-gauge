@@ -516,41 +516,11 @@ void showPage(uint8_t p, bool remember = false) {
   prefs.end();
 }
 
-// Peaks outlive a reboot (the power goes with the ignition, so they are saved as
-// they grow, at most once a minute). The battery low is not kept: cranking
-// sets it on every start. A bad blob just means no peaks yet.
-constexpr uint32_t PEAK_SAVE_MS = 60000;
-bool peaksDirty = false;
-uint32_t peaksSavedAt = 0;
-
-void loadPeaks() {
-  float saved[PAGE_COUNT + 1];   // one more than now: saved before engine load was removed (it was entry 1)
-  Preferences prefs;
-  prefs.begin("gauge", true);
-  const size_t n = prefs.getBytes("peaks", saved, sizeof saved);
-  prefs.end();
-  if (n == sizeof saved)
-    for (uint8_t i = 1; i < PAGE_COUNT; i++) saved[i] = saved[i + 1];
-  else if (n != sizeof(float) * PAGE_COUNT) return;
-  for (uint8_t i = 0; i < PAGE_COUNT; i++)
-    if (gauges[i].cfg->track == 1 && isfinite(saved[i])) extreme[i] = saved[i];
-}
-
-void savePeaks() {
-  Preferences prefs;
-  prefs.begin("gauge", false);
-  prefs.putBytes("peaks", extreme, sizeof extreme);
-  prefs.end();
-  peaksDirty = false;
-  peaksSavedAt = millis();
-}
-
 }  // namespace
 
-void ui_init() {
-  setTheme(settings().lightTheme);
-  for (float &e : extreme) e = NAN;
-  for (float &e : extremeLow) e = NAN;
+// Builds every screen from the current theme. The readings (peaks, lows,
+// maximums) live outside the screens, so a rebuild keeps them.
+static void buildScreens() {
   gauges[PAGE_BOOST] = makeGauge(BOOST);
   gauges[PAGE_COOLANT] = makeGauge(COOLANT);
   gauges[PAGE_OIL] = makeGauge(OIL);
@@ -560,11 +530,23 @@ void ui_init() {
   gauges[PAGE_TACH] = makeGauge(TACH);
   gauges[PAGE_FUEL] = makeGauge(FUEL);
   gauges[PAGE_TILT] = makeTilt(TILT);
-  loadPeaks();
   makeSettings();
   makeUpdateOverlay();
   for (uint8_t i = 0; i < PAGE_COUNT; i++) addPageDots(gauges[i].screen, gauges[i].dots, PAGE_COUNT);
   updateDots();
+}
+
+void ui_init() {
+  setTheme(settings().lightTheme);
+  for (float &e : extreme) e = NAN;
+  for (float &e : extremeLow) e = NAN;
+  {   // peaks used to be saved; they start fresh each time now
+    Preferences prefs;
+    prefs.begin("gauge", false);
+    prefs.remove("peaks");
+    prefs.end();
+  }
+  buildScreens();
 
   uint8_t start = settings().startPage;
   if (start == START_LAST) {
@@ -574,6 +556,26 @@ void ui_init() {
     prefs.end();
   }
   showPage(visibleFrom(start < PAGE_COUNT ? start : PAGE_BOOST));
+}
+
+// Light or dark changed: tear the screens down and build them again in the new
+// colours, on the page that was up.
+static void rebuildForTheme() {
+  setTheme(settings().lightTheme);
+  lv_obj_t *hold = lv_obj_create(nullptr);   // something to stand on while the real screens go
+  lv_obj_set_style_bg_color(hold, lv_color_hex(th.bg), 0);
+  lv_scr_load(hold);
+  const float high = face.pitchHigh, low = face.pitchLow;
+  for (uint8_t i = 0; i < PAGE_COUNT; i++) lv_obj_del(gauges[i].screen);
+  lv_obj_del(settingsPage.screen);
+  lv_obj_del(updateOverlay.panel);
+  buildScreens();
+  face.pitchHigh = high, face.pitchLow = low;
+  face.shownRoll = face.shownPitch = face.shownMax = face.shownWarn = INT_MIN;   // new objects, so draw them all
+  updateOverlay.shown = -1;
+  toastColor = th.fg;
+  lv_scr_load(screenFor(page));
+  lv_obj_del(hold);
 }
 
 // The clinometer only counts as warning once it has stayed past a limit for a
@@ -694,11 +696,8 @@ static bool reading(uint8_t p, const Telemetry &t, float &v) {
   return fresh(at);
 }
 
-static void applyResets();   // below, with ui_resetPeaks
-
 void ui_update(const Telemetry &t) {
   const Settings &s = settings();
-  applyResets();
   showUpdate(webconfig_updatePercent());
   // Wi-Fi went off by itself (web page button or idle timeout): back to the gauges.
   if (page == PAGE_SETTINGS && !webconfig_active()) showPage(returnPage);
@@ -720,10 +719,8 @@ void ui_update(const Telemetry &t) {
     }
     if (isnan(extreme[i]) || (dir > 0 ? v > extreme[i] : v < extreme[i])) {
       extreme[i] = v;
-      if (t.state == ObdState::Live && dir == 1) peaksDirty = true;
     }
   }
-  if (peaksDirty && millis() - peaksSavedAt >= PEAK_SAVE_MS) savePeaks();
   moveExtremeNeedles();
   const bool leanOk = lean.ok && lean.calibrated;
   if (leanOk) {   // pitch's furthest each way, from level
@@ -769,6 +766,7 @@ void ui_update(const Telemetry &t) {
 }
 
 void ui_applySettings() {
+  if (th.light != settings().lightTheme) rebuildForTheme();
   for (uint8_t i = 0; i < PAGE_COUNT; i++) applyBands(gauges[i]);
   updateDots();
   face.shownWarn = INT_MIN;   // redraw the pitch ladder's red lines at the new limit
@@ -816,41 +814,15 @@ void ui_brightness(int dir) {
   toastUntil = millis() + 3000;
 }
 
-// The web task only leaves a note of what to clear; ui_update does it, on the task that owns the readings.
-static volatile uint16_t resetRequest = 0;
-
-void ui_resetPeaks(uint16_t gaugeMask) {
-  __atomic_fetch_or(&resetRequest, gaugeMask, __ATOMIC_SEQ_CST);
-}
-
-static void clearExtremes(uint8_t p) {
-  extreme[p] = extremeLow[p] = NAN;
-  if (p == PAGE_TILT) face.pitchHigh = face.pitchLow = NAN;
-}
-
-// Clears what ui_resetPeaks asked for, and saves if a saved peak was among it.
-static void applyResets() {
-  const uint16_t mask = __atomic_exchange_n(&resetRequest, (uint16_t)0, __ATOMIC_SEQ_CST);
-  if (!mask) return;
-  bool saved = false;
-  for (uint8_t i = 0; i < PAGE_COUNT; i++) {
-    if (!(mask >> i & 1) || !gauges[i].cfg->track) continue;
-    clearExtremes(i);
-    saved |= gauges[i].cfg->track == 1;
-  }
-  if (saved) savePeaks();
-}
-
-// A press held on a gauge that tracks a peak or low starts that reading over;
-// on the roll and pitch gauges it clears both ends.
+// A press held for a moment switches between the dark and light themes. The
+// choice is saved like any other setting, so the Wi-Fi page's checkbox follows it.
 void ui_hold() {
   if (page == PAGE_SETTINGS) return;
-  const int8_t dir = gauges[page].cfg->track;
-  if (!dir) return;
-  clearExtremes(page);
-  if (dir == 1) savePeaks();
-  toastText = dir == 2 ? "Maximums reset" : dir > 0 ? "Peak reset" : "Low reset";
-  toastColor = th.fg;
+  Settings s = settings();
+  s.lightTheme = !s.lightTheme;
+  settings_stage(s);
+  toastText = s.lightTheme ? "Light" : "Dark";
+  toastColor = s.lightTheme ? 0x000000 : WHITE;
   toastUntil = millis() + 3000;
 }
 

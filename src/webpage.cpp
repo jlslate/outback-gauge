@@ -43,11 +43,6 @@ void check(String &o, const char *id, const char *label, bool on) {
   o += "</span></label>";
 }
 
-// The gauges that keep a peak, low or maximums, with what the reset button calls it; null for
-// the rest. In the order of the pages in ui.cpp, and in step with each gauge's track setting there.
-const char *const PEAK_NAMES[GAUGE_PAGES] = {"Boost peak", nullptr, "Oil temperature peak", "Intake air peak", "Battery low",
-                                             "Speed peak", "Tachometer peak", nullptr, "Clinometer maximums"};
-
 // In the order of the pages in ui.cpp.
 const char *const PAGE_NAMES[GAUGE_PAGES] = {"Boost", "Coolant", "Oil temperature", "Intake air", "Battery", "Speed", "Tachometer", "Fuel", "Clinometer"};
 
@@ -88,11 +83,10 @@ String render(const Settings &s, const char *note) {
          ".ar{display:inline-flex;gap:.2rem;margin-left:.4rem;vertical-align:middle}"
          "button.mb{width:auto;margin:0;padding:.15rem .4rem;font-size:.7rem;background:#1c1c1c;color:#aaa;border:1px solid #333;font-weight:400}"
          "tr.drag td{background:#2a2a2a}"
-         "button.rs{width:auto;margin:0;padding:.35rem .5rem;font-size:.75rem;background:#1c1c1c;color:#ccc;border:1px solid #333;font-weight:400}"
-         // The table has six columns; this keeps it inside a 375 px phone.
+         // The table has five columns; this keeps it inside a 375 px phone.
          "body{padding:12px}th,td{padding-left:.12rem;padding-right:.12rem}th{font-size:.62rem;letter-spacing:.03em}"
          "td input[type=number]{width:3.5rem;padding:.35rem}td input[type=radio],td input[type=checkbox]{width:1.2rem;height:1.2rem}"
-         "button.rs{padding:.3rem .35rem}.ar{margin-left:.25rem}.lim{gap:.15rem}.lim em{min-width:1.2rem;font-size:.72rem}"
+         ".ar{margin-left:.25rem}.lim{gap:.15rem}.lim em{min-width:1.2rem;font-size:.72rem}"
          "td input:disabled{opacity:.25}"
          "button.ghost.arm{background:#7a2c2c;color:#fff;border-color:#a33}"
          "#toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);padding:.7rem 1.3rem;"
@@ -116,11 +110,11 @@ String render(const Settings &s, const char *note) {
   }
 
   o += F("<form method=POST action=/save data-toast=\"Saved\"><h2>Gauges</h2><table>"
-         "<tr><th>Gauge (drag to reorder)<th>Warns at<th>Alert<th>Show<th>Start on<th>Reset</tr>");
+         "<tr><th>Gauge (drag to reorder)<th>Warns at<th>Alert<th>Show<th>Start on</tr>");
   o += F("<tr><td colspan=4>The last one I tapped to<td><input type=radio name=start value=");
   o += String((int)START_LAST);
   o += s.startPage == START_LAST ? F(" checked>") : F(">");
-  o += F("<td></tr>");
+  o += F("</tr>");
   for (int pos = 0; pos < GAUGE_PAGES; pos++) {
     const int i = s.order[pos];
     o += "<tr data-g><td class=mv><input type=hidden name=o value=";
@@ -157,21 +151,12 @@ String render(const Settings &s, const char *note) {
     o += "<td><input type=radio name=start value=";
     o += String(i);
     o += s.startPage == i ? " checked>" : ">";
-    o += "<td>";
-    if (PEAK_NAMES[i]) {
-      o += "<button type=button class=rs data-reset=";
-      o += String(i);
-      o += " title=\"";
-      o += PEAK_NAMES[i];
-      o += "\">Reset</button>";
-    }
     o += "</tr>";
   }
   o += F("</table>"
          "<p class=warn>The start gauge falls back to the first one shown if you hide it. With Alert off a gauge still turns red, but never pulls the screen over.</p>");
   check(o, "warnhidden", "Show a hidden gauge when it warns", s.warnHidden);
   check(o, "stay", "Stay on a gauge that has warned (otherwise keep rotating)", s.stayOnWarning);
-  o += F("<button type=button class=ghost data-reset=all data-ask=\"Tap again to reset all\">Reset all peaks and maximums</button>");
 
   o += F("<h2>Rotation</h2>");
   check(o, "auto", "Cycle through the gauges", s.autoRotate);
@@ -184,7 +169,7 @@ String render(const Settings &s, const char *note) {
   o += F(" oninput=\"this.nextElementSibling.textContent=this.value+'%'\"><em>");
   o += String((int)s.backlight);
   o += F("%</em></label>");
-  check(o, "light", "White background, black numbers and needles (restarts the screen)", s.lightTheme);
+  check(o, "light", "White background, black numbers and needles (hold the screen to flip it)", s.lightTheme);
 
   o += F("<button>Save</button></form>"
          "<form method=POST action=/level data-toast=\"Level set\" data-ask=\"Tap again to set level\" "
@@ -229,12 +214,6 @@ String render(const Settings &s, const char *note) {
          ".then(function(h){var y=scrollY;document.body.innerHTML=new DOMParser().parseFromString(h,'text/html').body.innerHTML;"
          "var n=document.querySelector('.note');if(n)n.remove();sync();scrollTo(0,y);toast(t)})"
          ".catch(function(){toast('Could not reach the gauge',1)})});"
-         "document.addEventListener('click',function(e){var b=e.target.closest('button[data-reset]');if(!b)return;"
-         "if(b.hasAttribute('data-ask')){if(!b.armed){b.armed=1;b.setAttribute('data-t',b.textContent);b.textContent=b.getAttribute('data-ask');"
-         "b.className='ghost arm';clearTimeout(b.t);b.t=setTimeout(function(){b.armed=0;b.textContent=b.getAttribute('data-t');b.className='ghost'},5000);return}"
-         "clearTimeout(b.t);b.armed=0;b.textContent=b.getAttribute('data-t');b.className='ghost'}"
-         "fetch('/resetpeaks',{method:'POST',body:new URLSearchParams({g:b.getAttribute('data-reset')})})"
-         ".then(function(){toast(b.getAttribute('data-reset')=='all'?'All reset':'Reset')}).catch(function(){toast('Could not reach the gauge',1)})});"
          "function upload(f){var b=f.querySelector('button'),bar=document.getElementById('upbar'),msg=document.getElementById('upmsg');"
          "b.disabled=true;bar.style.display='block';bar.value=0;msg.textContent='Uploading 0%';"
          "var x=new XMLHttpRequest();x.open('POST',f.action);"

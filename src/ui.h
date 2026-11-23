@@ -9,5 +9,4 @@ void ui_nextPage();   // tap or BOOT short press
 void ui_doubleTap();  // undo the first tap's page change and flip auto-rotate
 void ui_brightness(int dir);  // swipe up / down: next brighter / dimmer backlight step
 void ui_hold();  // press and hold: resets the peak or low on gauges that track one
-void ui_resetPeaks(uint16_t gaugeMask);  // from any task: clear the peak, low or maximums of the gauges whose page bits are set (the web page's buttons)
 void ui_longPress();  // hold: open the Wi-Fi page and start it; hold there to stop and go back
