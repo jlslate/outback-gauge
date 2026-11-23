@@ -156,7 +156,7 @@ String render(const Settings &s, const char *note) {
   o += F("</table>"
          "<p class=warn>The start gauge falls back to the first one shown if you hide it. With Alert off a gauge still turns red, but never pulls the screen over.</p>");
   check(o, "warnhidden", "Show a hidden gauge when it warns", s.warnHidden);
-  check(o, "stay", "Stay on a gauge that has warned (otherwise keep rotating)", s.stayOnWarning);
+  check(o, "stay", "Stay on a gauge that has warned for 30 seconds (otherwise keep rotating)", s.stayOnWarning);
 
   o += F("<h2>Rotation</h2>");
   check(o, "auto", "Cycle through the gauges", s.autoRotate);

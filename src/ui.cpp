@@ -626,6 +626,10 @@ static uint32_t clearSince[PAGE_COUNT];
 // warning has cleared (unless you have moved on yourself in the meantime).
 static constexpr uint8_t NO_PAGE = 255;
 static uint8_t pageBeforeWarning = NO_PAGE, warningPage = NO_PAGE;
+// A new warning holds the rotation for this long (when the setting says to stay), then it carries on
+// even if the gauge is still warning, so a reading that never clears can't freeze the screen.
+static constexpr uint32_t WARN_HOLD_MS = 30000;
+static uint32_t warnHoldUntil = 0;
 
 static bool checkAlarms(const Telemetry &t, const Settings &s) {
   bool any = false;
@@ -637,6 +641,7 @@ static bool checkAlarms(const Telemetry &t, const Settings &s) {
       clearSince[i] = 0;
       if (!warned[i]) {
         warned[i] = true;
+        warnHoldUntil = millis() + WARN_HOLD_MS;
         if (page != PAGE_SETTINGS && page != i) {
           if (pageBeforeWarning == NO_PAGE) pageBeforeWarning = page;
           warningPage = i;
@@ -710,7 +715,7 @@ void ui_update(const Telemetry &t) {
   const Tilt lean = imu_tilt();
   checkTiltWarning(lean, s);
   const bool alarmed = checkAlarms(t, s);
-  if (s.autoRotate && !(alarmed && s.stayOnWarning) && page != PAGE_SETTINGS && millis() - shownAt >= (uint32_t)(s.autoRotateSecs * 1000)) showPage(nextShown(page));
+  if (s.autoRotate && !(alarmed && s.stayOnWarning && (int32_t)(warnHoldUntil - millis()) > 0) && page != PAGE_SETTINGS && millis() - shownAt >= (uint32_t)(s.autoRotateSecs * 1000)) showPage(nextShown(page));
   const bool live = t.state == ObdState::Live || t.state == ObdState::Simulated;
   for (uint8_t i = 0; i < PAGE_COUNT; i++) {
     float v;
