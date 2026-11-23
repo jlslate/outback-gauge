@@ -26,7 +26,8 @@ struct Telemetry {
   float rpm = 0;
   float speedMph = 0;
   float fuelPct = 0;   // tank level, smoothed
-  uint32_t boostAt = 0, coolantAt = 0, oilAt = 0, intakeAt = 0, voltsAt = 0, rpmAt = 0, speedAt = 0, fuelAt = 0;
+  float altitudeFt = 0;   // worked out from the barometric pressure, which the car updates slowly
+  uint32_t boostAt = 0, coolantAt = 0, oilAt = 0, intakeAt = 0, voltsAt = 0, rpmAt = 0, speedAt = 0, fuelAt = 0, altitudeAt = 0;
 };
 
 void obd_start();  // runs the BLE/ELM327 client on its own task (core 0)

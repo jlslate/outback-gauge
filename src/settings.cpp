@@ -10,7 +10,7 @@ namespace {
 // Stored as one blob rather than a key per field: the whole struct round-trips
 // in two NVS calls, and a version mismatch after a firmware change falls back
 // to defaults instead of leaving half the fields stale. Bump on any layout change.
-constexpr uint16_t LAYOUT = 13;
+constexpr uint16_t LAYOUT = 14;
 
 struct Stored {
   uint16_t layout;
@@ -304,10 +304,10 @@ Settings settings_defaults() {
   s.alertMask = ALERT_MASK;
   s.stayOnWarning = STAY_ON_WARNING;
   s.lightTheme = LIGHT_THEME;
-  // Alphabetical by the gauge's name: battery, boost, clinometer, coolant,
+  // Alphabetical by the gauge's name: altitude, battery, boost, clinometer, coolant,
   // fuel, intake air, oil temperature, speed, tach (the numbers are the
   // pages in ui.cpp).
-  static const uint8_t alphabetical[GAUGE_PAGES] = {4, 0, 8, 1, 7, 3, 2, 5, 6};
+  static const uint8_t alphabetical[GAUGE_PAGES] = {9, 4, 0, 8, 1, 7, 3, 2, 5, 6};
   memset(s.order, 0, sizeof s.order);
   memcpy(s.order, alphabetical, sizeof alphabetical);
   return s;
@@ -315,6 +315,13 @@ Settings settings_defaults() {
 
 const Settings &settings() {
   return live;
+}
+
+// Layouts before 14 had no altitude page: it is shown, warns of nothing, and goes last.
+void addAltitude(Settings &s) {
+  s.order[9] = 9;
+  s.pageMask |= 1u << 9;
+  s.alertMask |= 1u << 9;
 }
 
 void settings_load() {
@@ -336,10 +343,20 @@ void settings_load() {
     Serial.println("[CFG] loaded saved settings");
     return;
   }
+  if (n == sizeof(Stored) && layout == 13) {   // same fields as now, before the altitude page
+    Stored st;
+    memcpy(&st, raw, sizeof st);
+    live = st.s;
+    addAltitude(live);
+    sanitize(live);
+    Serial.println("[CFG] carried over layout 13 settings");
+    return;
+  }
   if (n == sizeof(StoredV12) && layout == 12) {
     StoredV12 old;
     memcpy(&old, raw, sizeof old);
     live = fromV12(old.s);
+    addAltitude(live);
     sanitize(live);
     Serial.println("[CFG] carried over layout 12 settings");
     return;
@@ -348,6 +365,7 @@ void settings_load() {
     StoredV11 old;
     memcpy(&old, raw, sizeof old);
     live = fromV12(v12FromV11(old.s));
+    addAltitude(live);
     sanitize(live);
     Serial.println("[CFG] carried over layout 11 settings");
     return;
@@ -356,6 +374,7 @@ void settings_load() {
     StoredV10 old;
     memcpy(&old, raw, sizeof old);
     live = fromV12(v12FromV11(v11FromV10(old.s)));
+    addAltitude(live);
     sanitize(live);
     Serial.println("[CFG] carried over layout 10 settings");
     return;
@@ -364,6 +383,7 @@ void settings_load() {
     StoredV9 old;
     memcpy(&old, raw, sizeof old);
     live = fromV12(v12FromV11(v11FromV10(v10FromV9(old.s))));
+    addAltitude(live);
     sanitize(live);
     Serial.println("[CFG] carried over layout 9 settings");
     return;
@@ -372,6 +392,7 @@ void settings_load() {
     StoredV8 old;
     memcpy(&old, raw, sizeof old);
     live = fromV12(v12FromV11(v11FromV10(v10FromV9(v9FromV8(old.s)))));
+    addAltitude(live);
     sanitize(live);
     Serial.println("[CFG] carried over layout 8 settings");
     return;
@@ -384,6 +405,7 @@ void settings_load() {
       ((layout == 5 || layout == 4) && n == noLimitsBytes)) {
     memcpy(&old, raw, n);
     live = fromV12(v12FromV11(v11FromV10(v10FromV9(v9FromV8(v8FromV7(old.s, layout))))));
+    addAltitude(live);
     sanitize(live);
     Serial.printf("[CFG] carried over layout %u settings\n", layout);
   } else if (n) {

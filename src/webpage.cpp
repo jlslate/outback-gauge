@@ -44,7 +44,7 @@ void check(String &o, const char *id, const char *label, bool on) {
 }
 
 // In the order of the pages in ui.cpp.
-const char *const PAGE_NAMES[GAUGE_PAGES] = {"Boost", "Coolant", "Oil temperature", "Intake air", "Battery", "Speed", "Tachometer", "Fuel", "Clinometer"};
+const char *const PAGE_NAMES[GAUGE_PAGES] = {"Boost", "Coolant", "Oil temperature", "Intake air", "Battery", "Speed", "Tachometer", "Fuel", "Clinometer", "Altitude"};
 
 String render(const Settings &s, const char *note) {
   String o;
@@ -140,9 +140,11 @@ String render(const Settings &s, const char *note) {
       default: o += "<span class=none>none</span>";
     }
     o += "<td>";
-    o += "<input type=checkbox name=al";
-    o += String(i);
-    o += s.alertMask & (1u << i) ? " checked>" : ">";
+    if (i != 9) {   // altitude has no warning to switch off
+      o += "<input type=checkbox name=al";
+      o += String(i);
+      o += s.alertMask & (1u << i) ? " checked>" : ">";
+    }
     o += "<td><input type=checkbox name=pg";
     o += String(i);
     o += s.pageMask & (1u << i) ? " checked>" : ">";

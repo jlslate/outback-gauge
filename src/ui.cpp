@@ -66,6 +66,7 @@ const GaugeCfg FUEL = {"FUEL", "%", "%.0f", 0, 100, 1, 11, 2, {{0, 0, RED, &Sett
 // The clinometer: roll is an ordinary dial (left of centre is a lean to the left, with a red band past
 // each warning limit) with the artificial horizon for pitch in a window in the middle (see makeTilt).
 const GaugeCfg TILT = {"", "", "%.0f", -45, 45, 1, 19, 3, {{-45, 0, RED, &Settings::rollWarnDeg, false, -1}, {0, 45, RED, &Settings::rollWarnDeg}}, Focus::None, TEXT_MINT, 2};
+const GaugeCfg ALTITUDE = {"ALTITUDE", "ft", "%.0f", 0, 12000, 1, 13, 2, {{}, {}}, Focus::None, TEXT_PURPLE, 0};
 const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts, TEXT_GREEN, -1};
 
 struct Gauge {
@@ -93,7 +94,7 @@ struct SettingsPage {
   lv_obj_t *screen, *caption, *headline, *caption2, *detail, *url, *foot;
 };
 
-enum : uint8_t { PAGE_BOOST, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_SPEED, PAGE_TACH, PAGE_FUEL, PAGE_TILT, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
+enum : uint8_t { PAGE_BOOST, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_SPEED, PAGE_TACH, PAGE_FUEL, PAGE_TILT, PAGE_ALTITUDE, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
 
 Gauge gauges[PAGE_COUNT];
 Face face;
@@ -530,6 +531,7 @@ static void buildScreens() {
   gauges[PAGE_TACH] = makeGauge(TACH);
   gauges[PAGE_FUEL] = makeGauge(FUEL);
   gauges[PAGE_TILT] = makeTilt(TILT);
+  gauges[PAGE_ALTITUDE] = makeGauge(ALTITUDE);
   makeSettings();
   makeUpdateOverlay();
   for (uint8_t i = 0; i < PAGE_COUNT; i++) addPageDots(gauges[i].screen, gauges[i].dots, PAGE_COUNT);
@@ -686,6 +688,10 @@ static bool reading(uint8_t p, const Telemetry &t, float &v) {
     case PAGE_SPEED: v = t.speedMph, at = t.speedAt; break;
     case PAGE_TACH: v = t.rpm, at = t.rpmAt; break;
     case PAGE_FUEL: v = t.fuelPct, at = t.fuelAt; break;
+    case PAGE_ALTITUDE:   // the car updates its barometer slowly, so a reading is held rather than going stale
+      v = t.altitudeFt;
+      at = t.altitudeAt && (t.state == ObdState::Live || t.state == ObdState::Simulated) ? millis() : 0;
+      break;
     case PAGE_TILT: {   // the dial reads roll; pitch is read where the window is drawn
       const Tilt lean = imu_tilt();
       v = lean.roll;

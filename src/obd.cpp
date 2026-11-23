@@ -56,7 +56,8 @@ void simulate() {
       s.rpm = 800.0f + throttle * 4500.0f;
       s.speedMph = throttle * 85.0f;
       s.fuelPct = max(8.0f, 62.0f - t * 0.05f);
-      s.boostAt = s.coolantAt = s.oilAt = s.intakeAt = s.voltsAt = s.rpmAt = s.speedAt = s.fuelAt = now;
+      s.altitudeFt = 5280.0f + 40.0f * sinf(t * 0.05f);
+      s.boostAt = s.coolantAt = s.oilAt = s.intakeAt = s.voltsAt = s.rpmAt = s.speedAt = s.fuelAt = s.altitudeAt = now;
     });
     vTaskDelay(pdMS_TO_TICKS(50));
   }
@@ -432,6 +433,9 @@ bool readBaro() {
   uint8_t b;
   if (!readPid(0x33, &b, 1)) return false;
   baroKpa = b;
+  // Standard atmosphere: pressure to height. Weather moves this a few hundred feet either way.
+  const float ft = 145366.45f * (1.0f - powf(baroKpa / 101.325f, 0.190284f));
+  edit([&](Telemetry &t) { t.altitudeFt = ft, t.altitudeAt = millis(); });
   return true;
 }
 

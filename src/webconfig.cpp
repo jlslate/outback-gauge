@@ -65,7 +65,7 @@ void handleSave() {
   s.warnHidden = server.hasArg("warnhidden");
   s.stayOnWarning = server.hasArg("stay");
   s.lightTheme = server.hasArg("light");
-  s.alertMask = 0;
+  s.alertMask = 1u << 9;   // altitude has no warning and no checkbox; its bit stays set
   for (int i = 0; i < GAUGE_PAGES; i++) {
     char name[8];
     snprintf(name, sizeof name, "al%d", i);
