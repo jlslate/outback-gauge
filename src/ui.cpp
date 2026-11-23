@@ -614,7 +614,7 @@ static bool checkAlarms(const Telemetry &t, const Settings &s) {
     // A gauge that is switched off stays off unless the setting lets it
     // through, and the first few seconds are skipped: starting the engine drags the battery down and would pull the
     // screen to the battery gauge every time.
-    if ((shown(i) || s.warnHidden) && millis() > STARTUP_GRACE_MS && warning(i, t, s)) {
+    if ((shown(i) || s.warnHidden) && (s.alertMask >> i & 1) && millis() > STARTUP_GRACE_MS && warning(i, t, s)) {
       clearSince[i] = 0;
       if (!warned[i]) {
         warned[i] = true;
@@ -691,7 +691,7 @@ void ui_update(const Telemetry &t) {
   const Tilt lean = imu_tilt();
   checkTiltWarning(lean, s);
   const bool alarmed = checkAlarms(t, s);
-  if (s.autoRotate && !alarmed && page != PAGE_SETTINGS && millis() - shownAt >= (uint32_t)(s.autoRotateSecs * 1000)) showPage(nextShown(page));
+  if (s.autoRotate && !(alarmed && s.stayOnWarning) && page != PAGE_SETTINGS && millis() - shownAt >= (uint32_t)(s.autoRotateSecs * 1000)) showPage(nextShown(page));
   const bool live = t.state == ObdState::Live || t.state == ObdState::Simulated;
   for (uint8_t i = 0; i < PAGE_COUNT; i++) {
     float v;

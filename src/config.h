@@ -55,6 +55,11 @@ static const char *const OBD_NAME_HINTS[] = {"obdlink", "obd", "vlink", "vgate",
 // Whether a gauge that is hidden on the settings page still comes up when it warns.
 #define WARN_HIDDEN 0
 
+// Which gauges' warnings pull the screen over (one bit each, in the page order above),
+// and whether auto-rotate waits on a gauge that has warned or carries on.
+#define ALERT_MASK 0x3FF
+#define STAY_ON_WARNING 1
+
 // Settings access point. Compile-time only: it has to be reachable before you
 // can change anything. How long it stays up with no requests before shutting
 // the radio back off.

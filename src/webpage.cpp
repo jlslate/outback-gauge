@@ -89,6 +89,10 @@ String render(const Settings &s, const char *note) {
          "button.mb{width:auto;margin:0;padding:.15rem .4rem;font-size:.7rem;background:#1c1c1c;color:#aaa;border:1px solid #333;font-weight:400}"
          "tr.drag td{background:#2a2a2a}"
          "button.rs{width:auto;margin:0;padding:.35rem .5rem;font-size:.75rem;background:#1c1c1c;color:#ccc;border:1px solid #333;font-weight:400}"
+         // The table has six columns; this keeps it inside a 375 px phone.
+         "body{padding:12px}th,td{padding-left:.12rem;padding-right:.12rem}th{font-size:.62rem;letter-spacing:.03em}"
+         "td input[type=number]{width:3.5rem;padding:.35rem}td input[type=radio],td input[type=checkbox]{width:1.2rem;height:1.2rem}"
+         "button.rs{padding:.3rem .35rem}.ar{margin-left:.25rem}.lim{gap:.15rem}.lim em{min-width:1.2rem;font-size:.72rem}"
          "td input:disabled{opacity:.25}"
          "button.ghost.arm{background:#7a2c2c;color:#fff;border-color:#a33}"
          "#toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);padding:.7rem 1.3rem;"
@@ -112,8 +116,8 @@ String render(const Settings &s, const char *note) {
   }
 
   o += F("<form method=POST action=/save data-toast=\"Saved\"><h2>Gauges</h2><table>"
-         "<tr><th>Gauge (drag to reorder)<th>Warns at<th>Show<th>Start on<th>Reset</tr>");
-  o += F("<tr><td colspan=3>The last one I tapped to<td><input type=radio name=start value=");
+         "<tr><th>Gauge (drag to reorder)<th>Warns at<th>Alert<th>Show<th>Start on<th>Reset</tr>");
+  o += F("<tr><td colspan=4>The last one I tapped to<td><input type=radio name=start value=");
   o += String((int)START_LAST);
   o += s.startPage == START_LAST ? F(" checked>") : F(">");
   o += F("<td></tr>");
@@ -143,6 +147,12 @@ String render(const Settings &s, const char *note) {
         break;
       default: o += "<span class=none>none</span>";
     }
+    o += "<td>";
+    if (i != 1) {   // engine load has no warning to switch off
+      o += "<input type=checkbox name=al";
+      o += String(i);
+      o += s.alertMask & (1u << i) ? " checked>" : ">";
+    }
     o += "<td><input type=checkbox name=pg";
     o += String(i);
     o += s.pageMask & (1u << i) ? " checked>" : ">";
@@ -160,8 +170,9 @@ String render(const Settings &s, const char *note) {
     o += "</tr>";
   }
   o += F("</table>"
-         "<p class=warn>The start gauge falls back to the first one shown if you hide it.</p>");
+         "<p class=warn>The start gauge falls back to the first one shown if you hide it. With Alert off a gauge still turns red, but never pulls the screen over.</p>");
   check(o, "warnhidden", "Show a hidden gauge when it warns", s.warnHidden);
+  check(o, "stay", "Stay on a gauge that has warned (otherwise keep rotating)", s.stayOnWarning);
   o += F("<button type=button class=ghost data-reset=all data-ask=\"Tap again to reset all\">Reset all peaks and maximums</button>");
 
   o += F("<h2>Rotation</h2>");
@@ -198,7 +209,7 @@ String render(const Settings &s, const char *note) {
   o += String((unsigned)(millis() / 60000));
   o += F(" min ago.</p></main><div id=toast></div><script>"
          "function sync(){var rows=document.querySelectorAll('tr[data-g]'),on=0,pick=null;"
-         "rows.forEach(function(r){var c=r.querySelector('input[type=checkbox]'),d=r.querySelector('input[type=radio]');"
+         "rows.forEach(function(r){var c=r.querySelector('input[name^=pg]'),d=r.querySelector('input[type=radio]');"
          "d.disabled=!c.checked;if(c.checked){on++;if(!pick)pick=d}"
          "if(d.disabled&&d.checked){d.checked=false;if(pick)pick.checked=true}});"
          "var sel=document.querySelector('input[name=start]:checked');"

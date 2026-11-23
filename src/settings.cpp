@@ -10,7 +10,7 @@ namespace {
 // Stored as one blob rather than a key per field: the whole struct round-trips
 // in two NVS calls, and a version mismatch after a firmware change falls back
 // to defaults instead of leaving half the fields stale. Bump on any layout change.
-constexpr uint16_t LAYOUT = 10;
+constexpr uint16_t LAYOUT = 11;
 
 struct Stored {
   uint16_t layout;
@@ -98,6 +98,39 @@ struct StoredV9 {
   SettingsV9 s;
 };
 
+// Layout 10, before alerts could be switched off per gauge.
+struct SettingsV10 {
+  uint8_t backlight;
+  float boostWarnPsi, coolantWarnF, oilWarnF, intakeWarnF, voltsLowWarn, voltsHighWarn;
+  bool autoRotate;
+  float autoRotateSecs;
+  uint16_t pageMask;
+  uint8_t startPage;
+  float speedWarnMph, rpmWarn, fuelWarnPct, rollWarnDeg, pitchWarnDeg;
+  bool warnHidden;
+  uint8_t order[MAX_GAUGES];
+};
+
+struct StoredV10 {
+  uint16_t layout;
+  SettingsV10 s;
+};
+
+// Everything carries over; the new options start at their defaults.
+Settings fromV10(const SettingsV10 &o) {
+  Settings s = settings_defaults();
+  s.backlight = o.backlight;
+  s.boostWarnPsi = o.boostWarnPsi, s.coolantWarnF = o.coolantWarnF, s.oilWarnF = o.oilWarnF;
+  s.intakeWarnF = o.intakeWarnF, s.voltsLowWarn = o.voltsLowWarn, s.voltsHighWarn = o.voltsHighWarn;
+  s.autoRotate = o.autoRotate, s.autoRotateSecs = o.autoRotateSecs;
+  s.pageMask = o.pageMask;
+  s.startPage = o.startPage;
+  s.speedWarnMph = o.speedWarnMph, s.rpmWarn = o.rpmWarn, s.fuelWarnPct = o.fuelWarnPct;
+  s.rollWarnDeg = o.rollWarnDeg, s.pitchWarnDeg = o.pitchWarnDeg, s.warnHidden = o.warnHidden;
+  memcpy(s.order, o.order, sizeof s.order);
+  return s;
+}
+
 // The clinometer is shown and goes last.
 SettingsV9 v9FromV8(const SettingsV8 &o) {
   SettingsV9 s{};
@@ -164,6 +197,7 @@ void sanitize(Settings &s) {
     else seen[o] = true;
   }
   if (!perm) memcpy(s.order, settings_defaults().order, sizeof s.order);
+  s.alertMask &= (1u << GAUGE_PAGES) - 1;
   s.pageMask &= (1u << GAUGE_PAGES) - 1;
   if (!s.pageMask) s.pageMask = 1;                       // something has to be showing
   if (s.startPage != START_LAST && s.startPage >= GAUGE_PAGES) s.startPage = 0;
@@ -197,6 +231,8 @@ Settings settings_defaults() {
   s.rollWarnDeg = ROLL_WARN_DEG;
   s.pitchWarnDeg = PITCH_WARN_DEG;
   s.warnHidden = WARN_HIDDEN;
+  s.alertMask = ALERT_MASK;
+  s.stayOnWarning = STAY_ON_WARNING;
   // Alphabetical by the gauge's name: battery, boost, clinometer, coolant, engine
   // load, fuel, intake air, oil temperature, speed, tach (the numbers are the
   // pages in ui.cpp).
@@ -215,7 +251,7 @@ void settings_load() {
 
   Preferences prefs;
   prefs.begin("gauge", true);
-  uint8_t raw[sizeof(Stored) + sizeof(StoredV9) + sizeof(StoredV8) + sizeof(StoredV7)] = {};   // roomy: getBytes refuses a short buffer
+  uint8_t raw[sizeof(Stored) + sizeof(StoredV10) + sizeof(StoredV9) + sizeof(StoredV8) + sizeof(StoredV7)] = {};   // roomy: getBytes refuses a short buffer
   const size_t n = prefs.getBytes("cfg", raw, sizeof raw);
   prefs.end();
   uint16_t layout = 0;
@@ -227,6 +263,14 @@ void settings_load() {
     live = st.s;
     sanitize(live);
     Serial.println("[CFG] loaded saved settings");
+    return;
+  }
+  if (n == sizeof(StoredV10) && layout == 10) {
+    StoredV10 old;
+    memcpy(&old, raw, sizeof old);
+    live = fromV10(old.s);
+    sanitize(live);
+    Serial.println("[CFG] carried over layout 10 settings");
     return;
   }
   if (n == sizeof(StoredV9) && layout == 9) {

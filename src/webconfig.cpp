@@ -63,6 +63,13 @@ void handleSave() {
   // Unchecked boxes aren't posted at all, so presence is the value.
   s.autoRotate = server.hasArg("auto");
   s.warnHidden = server.hasArg("warnhidden");
+  s.stayOnWarning = server.hasArg("stay");
+  s.alertMask = 1u << 1;   // engine load has no warning and no checkbox; its bit stays as it was
+  for (int i = 0; i < GAUGE_PAGES; i++) {
+    char name[8];
+    snprintf(name, sizeof name, "al%d", i);
+    if (server.hasArg(name)) s.alertMask |= 1u << i;
+  }
   s.autoRotateSecs = argFloat("secs", s.autoRotateSecs);
   s.startPage = (uint8_t)argFloat("start", s.startPage);
   // The rows come back in the order they were left in, each carrying its gauge number.

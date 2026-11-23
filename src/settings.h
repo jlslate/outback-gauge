@@ -36,6 +36,9 @@ struct Settings {
 
   bool warnHidden;     // a gauge that is switched off still comes up when it warns
   uint8_t order[MAX_GAUGES];  // the gauges in the order the screen steps through them; the first GAUGE_PAGES are a permutation of 0..GAUGE_PAGES-1
+
+  uint16_t alertMask;   // bit per gauge page: set = its warning pulls the screen over (clear = it only turns red)
+  bool stayOnWarning;   // true: auto-rotate waits while a gauge warns; false: it carries on
 };
 
 constexpr uint8_t START_LAST = 255;
