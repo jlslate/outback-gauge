@@ -192,7 +192,9 @@ String render(const Settings &s, const char *note) {
   o += F(", ");
   o += String((unsigned)(millis() / 60000));
   o += F(" min ago.</p></main><div id=toast></div><script>"
-         "function sync(){var rows=document.querySelectorAll('tr[data-g]'),on=0,pick=null;"
+         "function ends(){var a=document.querySelectorAll('tr[data-g]'),n=a.length;a.forEach(function(r,i){var m=r.querySelectorAll('button.mb');"
+         "m[0].style.visibility=i?'':'hidden';m[1].style.visibility=i<n-1?'':'hidden'})}"
+         "function sync(){ends();var rows=document.querySelectorAll('tr[data-g]'),on=0,pick=null;"
          "rows.forEach(function(r){var c=r.querySelector('input[name^=pg]'),d=r.querySelector('input[type=radio]');"
          "d.disabled=!c.checked;if(c.checked){on++;if(!pick)pick=d}"
          "if(d.disabled&&d.checked){d.checked=false;if(pick)pick.checked=true}});"
@@ -225,13 +227,13 @@ String render(const Settings &s, const char *note) {
          "function rows(){return Array.prototype.slice.call(document.querySelectorAll('tr[data-g]'))}"
          "document.addEventListener('click',function(e){var b=e.target.closest('button.mb');if(!b)return;"
          "var r=b.closest('tr'),all=rows(),i=all.indexOf(r),d=+b.getAttribute('data-d'),o=all[i+d];if(!o)return;"
-         "if(d<0)o.parentNode.insertBefore(r,o);else o.parentNode.insertBefore(o,r)});"
+         "if(d<0)o.parentNode.insertBefore(r,o);else o.parentNode.insertBefore(o,r);ends()});"
          "var dragRow=null;"
          "document.addEventListener('pointerdown',function(e){var h=e.target.closest('td.mv');if(!h||e.target.closest('button'))return;"
          "dragRow=h.parentNode;dragRow.className='drag';h.setPointerCapture(e.pointerId)});"
          "document.addEventListener('pointermove',function(e){if(!dragRow)return;var all=rows(),i=all.indexOf(dragRow),p=all[i-1],n=all[i+1];"
          "if(p){var a=p.getBoundingClientRect();if(e.clientY<a.top+a.height/2)p.parentNode.insertBefore(dragRow,p)}"
-         "if(n){var c=n.getBoundingClientRect();if(e.clientY>c.top+c.height/2)n.parentNode.insertBefore(n,dragRow)}});"
+         "if(n){var c=n.getBoundingClientRect();if(e.clientY>c.top+c.height/2)n.parentNode.insertBefore(n,dragRow)}ends()});"
          "function drop(){if(dragRow){dragRow.className='';dragRow=null}}"
          "document.addEventListener('pointerup',drop);document.addEventListener('pointercancel',drop);"
          "sync();</script></body></html>");
