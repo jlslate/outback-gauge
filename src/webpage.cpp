@@ -80,13 +80,13 @@ String render(const Settings &s, const char *note) {
          "td input[type=number]{width:4.2rem}"
          ".none{color:#555}"
          "td.mv{touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}"
-         ".ar{display:inline-flex;gap:.2rem;margin-left:.4rem;vertical-align:middle}"
+         ".ar{display:inline-flex;gap:.2rem;margin-right:.4rem;vertical-align:middle}"
          "button.mb{width:auto;margin:0;padding:.15rem .4rem;font-size:.7rem;background:#1c1c1c;color:#aaa;border:1px solid #333;font-weight:400}"
          "tr.drag td{background:#2a2a2a}"
          // The table has five columns; this keeps it inside a 375 px phone.
          "body{padding:12px}th,td{padding-left:.12rem;padding-right:.12rem}th{font-size:.62rem;letter-spacing:.03em}"
          "td input[type=number]{width:4rem;padding:.35rem .3rem;-moz-appearance:textfield;appearance:textfield}td input[type=number]::-webkit-inner-spin-button,td input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}td input[type=radio],td input[type=checkbox]{width:1.2rem;height:1.2rem}"
-         ".ar{margin-left:.25rem}.lim{gap:.2rem}.lim em{min-width:1.6rem;font-size:.78rem}"
+         ".nm{display:inline-block;vertical-align:middle;max-width:calc(100% - 3.4rem);font-size:.8rem}.ar{margin-right:.2rem;gap:.12rem}button.mb{padding:.15rem .3rem}.lim{gap:.2rem}.lim em{min-width:1.6rem;font-size:.78rem}"
          "td input:disabled{opacity:.25}"
          "button.ghost.arm{background:#7a2c2c;color:#fff;border-color:#a33}"
          "#toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);padding:.7rem 1.3rem;"
@@ -119,10 +119,10 @@ String render(const Settings &s, const char *note) {
     const int i = s.order[pos];
     o += "<tr data-g><td class=mv><input type=hidden name=o value=";
     o += String(i);
-    o += "><span class=nm>";
+    o += "><span class=ar><button type=button class=mb data-d=-1>&#9650;</button>"
+         "<button type=button class=mb data-d=1>&#9660;</button></span><span class=nm>";
     o += PAGE_NAMES[i];
-    o += "</span><span class=ar><button type=button class=mb data-d=-1>&#9650;</button>"
-         "<button type=button class=mb data-d=1>&#9660;</button></span><td>";
+    o += "</span><td>";
     switch (i) {
       case 0: limit(o, "boost", "min=0 max=20 step=0.5", s.boostWarnPsi, 1, "psi"); break;
       case 1: limit(o, "cool", "min=150 max=260 step=1", s.coolantWarnF, 0, "&deg;F"); break;
