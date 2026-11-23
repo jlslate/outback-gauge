@@ -23,7 +23,7 @@ settings page). **Tap** to go to the next one early; **double tap** to turn auto
 reading since the last reset, and battery one at the lowest (the status line
 says "PEAK" or "LOW" with the number). They start over every time the gauge powers up. **Press and hold** (about half a second) anywhere to switch between the dark theme and the white one (white background, black numbers and needles); it is saved, and the Wi-Fi page has the same checkbox. **Swipe up or down** for a brighter or dimmer screen (5, 20, 40, 60, 80 or 100%). The dots along the bottom show where you are. The Wi-Fi page chooses which
 gauge the screen starts on (or "the last one I tapped to") and which gauges are
-shown at all (an Alert tick per gauge switches its warning off, so it only turns red and never pulls the screen over; a hidden gauge can still come up when it warns, if you tick that option), and the order they come in: drag a row by its name (or use its arrows) and save. The BOOT button does the same from the bench — a
+shown at all (an Alert tick per gauge switches its warning off, so it only turns red and never pulls the screen over; a hidden gauge can still come up when it warns, if you tick that option), and the order they come in: press and hold a row by its grip (the dotted handle) and drag it, then save. The BOOT button does the same from the bench — a
 short press moves to the next page, holding it opens Wi-Fi — but
 it has no hole in the case: it sits under one of the magnet pads. Everything
 it does is also a touch gesture.
