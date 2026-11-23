@@ -56,8 +56,9 @@ void simulate() {
       s.rpm = 800.0f + throttle * 4500.0f;
       s.speedMph = throttle * 85.0f;
       s.fuelPct = max(8.0f, 62.0f - t * 0.05f);
+      s.fuelLph = 2.0f + throttle * 20.0f;
       s.altitudeFt = 5280.0f + 40.0f * sinf(t * 0.05f);
-      s.boostAt = s.coolantAt = s.oilAt = s.intakeAt = s.voltsAt = s.rpmAt = s.speedAt = s.fuelAt = s.altitudeAt = now;
+      s.boostAt = s.coolantAt = s.oilAt = s.intakeAt = s.voltsAt = s.rpmAt = s.speedAt = s.fuelAt = s.altitudeAt = s.fuelRateAt = now;
     });
     vTaskDelay(pdMS_TO_TICKS(50));
   }
@@ -295,7 +296,7 @@ bool ecuResponds(uint32_t timeoutMs) {
 
 // ---- polling ---------------------------------------------------------------
 
-enum class Item : uint8_t { Map, Coolant, Oil, Intake, Volts, Rpm, Speed, Fuel };
+enum class Item : uint8_t { Map, Coolant, Oil, Intake, Volts, Rpm, Speed, Fuel, FuelRate };
 
 float baroKpa = 101.3f;
 
@@ -315,6 +316,7 @@ bool itemSupported(Item item) {
     case Item::Rpm: return pidSupported(0x0C);
     case Item::Speed: return pidSupported(0x0D);
     case Item::Fuel: return pidSupported(0x2F);
+    case Item::FuelRate: return pidSupported(0x5E) || pidSupported(0x10);
     case Item::Volts: return true;  // the adapter measures this itself
   }
   return true;
@@ -413,6 +415,18 @@ bool poll(Item item) {
         t.fuelAt = now;
       });
       return true;
+    case Item::FuelRate: {
+      float lph;
+      if (pidSupported(0x5E)) {   // engine fuel rate, 0.05 L/h a step
+        if (!readPid(0x5E, b, 2)) return false;
+        lph = (b[0] * 256 + b[1]) / 20.0f;
+      } else {                    // air flow in 0.01 g/s; fuel is about 1 part in 14.7 of it, 745 g to the litre
+        if (!readPid(0x10, b, 2)) return false;
+        lph = (b[0] * 256 + b[1]) / 100.0f / 14.7f * 3600.0f / 745.0f;
+      }
+      edit([&](Telemetry &t) { t.fuelLph = lph, t.fuelRateAt = now; });
+      return true;
+    }
     case Item::Volts: {
       String r;
       if (!command("ATRV", r, 600)) return false;
@@ -449,6 +463,7 @@ bool focusItem(Focus f, Item &out) {
     case Focus::Speed: out = Item::Speed; return true;
     case Focus::Rpm: out = Item::Rpm; return true;
     case Focus::Fuel: out = Item::Fuel; return true;
+    case Focus::Economy: out = Item::FuelRate; return true;
     default: return false;
   }
 }
@@ -464,8 +479,9 @@ void runSession() {
     ecu = ecuResponds(10000);
   }
   if (ecu) discoverPids();
+  if (ecu && !itemSupported(Item::FuelRate)) edit([](Telemetry &t) { t.economyOk = false; });
 
-  static const Item slowItems[] = {Item::Coolant, Item::Oil, Item::Intake, Item::Volts, Item::Rpm, Item::Speed, Item::Fuel};
+  static const Item slowItems[] = {Item::Coolant, Item::Oil, Item::Intake, Item::Volts, Item::Rpm, Item::Speed, Item::Fuel, Item::FuelRate};
   size_t slowIdx = 0;
   uint32_t lastSlow = 0, lastBaro = 0;
   int failures = 0;
@@ -496,6 +512,7 @@ void runSession() {
     const bool haveFast = focusItem(focus, fast);
     bool ok = true, asked = false;
     if (haveFast && itemSupported(fast)) ok = poll(fast), asked = true;
+    if (focus == Focus::Economy && itemSupported(Item::Speed)) ok = poll(Item::Speed) && ok, asked = true;   // miles per gallon needs the speed too
 
     if (!haveFast || millis() - lastSlow >= 400) {
       lastSlow = millis();

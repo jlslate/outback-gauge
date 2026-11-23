@@ -9,7 +9,7 @@
 // Reads happen on the UI task, writes on the web server's task, so the web
 // side stages a whole struct and the UI task swaps it in at a safe point
 // (settings_apply) rather than editing fields underneath a running frame.
-constexpr int GAUGE_PAGES = 10;            // keep in step with the page list in ui.cpp and webpage.cpp
+constexpr int GAUGE_PAGES = 11;            // keep in step with the page list in ui.cpp and webpage.cpp
 constexpr int MAX_GAUGES = 16;             // room in the saved order, so adding a gauge doesn't change the layout
 
 struct Settings {

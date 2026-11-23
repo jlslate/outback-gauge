@@ -71,25 +71,25 @@ int main() {
   ui_update(t);
   t.speedMph = 63; t.rpm = 2300;
   t.boostPsi = 12.4f; t.coolantF = 203; t.oilF = 221; t.intakeF = 97; t.volts = 14.2f;
-  t.altitudeFt = 5280; t.altitudeAt = s;
+  t.altitudeFt = 5280; t.altitudeAt = s; t.fuelLph = 6.0f; t.fuelRateAt = s; t.speedMph = 63;
   t.coolantAt = t.oilAt = t.intakeAt = t.voltsAt = s;
 
   fakeTilt.ok = fakeTilt.calibrated = true;
   fakeTilt.roll = 14; fakeTilt.pitch = 9; ui_update(t);          // the maximums
   fakeTilt.roll = -11; fakeTilt.pitch = -6; ui_update(t);
   fakeTilt.roll = 12; fakeTilt.pitch = 5;
-  for (int page = 0; page < 10; page++) {
+  for (int page = 0; page < 11; page++) {
     ui_update(t); capture(page); ui_nextPage();
   }
   // Boost page again while still searching for the adapter.
   Telemetry idle; idle.state = ObdState::Scanning;
-  ui_update(idle); capture(10);
+  ui_update(idle); capture(11);
 
   // Settings page with the access point up, which is the crowded layout.
   ui_longPress();
-  ui_update(t); capture(11);
+  ui_update(t); capture(12);
 
-  fakeUpdate = 45; ui_update(t); capture(12);   // a firmware update arriving
+  fakeUpdate = 45; ui_update(t); capture(13);   // a firmware update arriving
   fakeUpdate = -1; ui_update(t);
 
   FILE *f = fopen("gauges.ppm", "wb");

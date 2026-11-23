@@ -19,7 +19,7 @@ namespace {
 constexpr lv_coord_t C = LCD_SIZE / 2;  // screen center
 constexpr uint32_t WHITE = 0xFFFFFF, GREY = 0x9E9E9E, RED = 0xE53935, AMBER = 0xFB8C00, BLUE = 0x1E88E5;
 constexpr uint32_t TEXT_GREEN = 0x4CAF50, TEXT_ORANGE = 0xFF9800, TEXT_BLUE = 0x42A5F5, TEXT_PINK = 0xFF4FA3,
-                   TEXT_YELLOW = 0xFFEB3B, TEXT_PURPLE = 0xBA68C8, TEXT_TEAL = 0x26C6DA, TEXT_LIME = 0xC0CA33, TEXT_SILVER = 0xE0E0E0, TEXT_MINT = 0x80CBC4, TEXT_PEACH = 0xFFAB91;
+                   TEXT_YELLOW = 0xFFEB3B, TEXT_PURPLE = 0xBA68C8, TEXT_TEAL = 0x26C6DA, TEXT_LIME = 0xC0CA33, TEXT_SILVER = 0xE0E0E0, TEXT_MINT = 0x80CBC4, TEXT_PEACH = 0xFFAB91, TEXT_SAND = 0xFFCC80;
 #define DEG "\xC2\xB0"
 
 // Dark: black screen, coloured readouts, white ticks, orange needle. Light: white
@@ -67,6 +67,7 @@ const GaugeCfg FUEL = {"FUEL", "%", "%.0f", 0, 100, 1, 11, 2, {{0, 0, RED, &Sett
 // each warning limit) with the artificial horizon for pitch in a window in the middle (see makeTilt).
 const GaugeCfg TILT = {"", "", "%.0f", -45, 45, 1, 19, 3, {{-45, 0, RED, &Settings::rollWarnDeg, false, -1}, {0, 45, RED, &Settings::rollWarnDeg}}, Focus::None, TEXT_MINT, 2};
 const GaugeCfg ALTITUDE = {"ALTITUDE", "ft", "%.0f", 0, 12000, 1, 13, 2, {{}, {}}, Focus::None, TEXT_PURPLE, 1};
+const GaugeCfg ECONOMY = {"ECONOMY", "mpg", "%.0f", 0, 50, 1, 26, 5, {{}, {}}, Focus::Economy, TEXT_SAND, 0};
 const GaugeCfg VOLTS = {"BATTERY", "V", "%.1f", 10, 16, 10, 13, 2, {{10, 0, AMBER, &Settings::voltsLowWarn, false}, {0, 16, RED, &Settings::voltsHighWarn}}, Focus::Volts, TEXT_GREEN, -1};
 
 struct Gauge {
@@ -94,7 +95,7 @@ struct SettingsPage {
   lv_obj_t *screen, *caption, *headline, *caption2, *detail, *url, *foot;
 };
 
-enum : uint8_t { PAGE_BOOST, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_SPEED, PAGE_TACH, PAGE_FUEL, PAGE_TILT, PAGE_ALTITUDE, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
+enum : uint8_t { PAGE_BOOST, PAGE_COOLANT, PAGE_OIL, PAGE_INTAKE, PAGE_VOLTS, PAGE_SPEED, PAGE_TACH, PAGE_FUEL, PAGE_TILT, PAGE_ALTITUDE, PAGE_ECONOMY, PAGE_COUNT, PAGE_SETTINGS = PAGE_COUNT };
 
 Gauge gauges[PAGE_COUNT];
 Face face;
@@ -532,6 +533,7 @@ static void buildScreens() {
   gauges[PAGE_FUEL] = makeGauge(FUEL);
   gauges[PAGE_TILT] = makeTilt(TILT);
   gauges[PAGE_ALTITUDE] = makeGauge(ALTITUDE);
+  gauges[PAGE_ECONOMY] = makeGauge(ECONOMY);
   makeSettings();
   makeUpdateOverlay();
   for (uint8_t i = 0; i < PAGE_COUNT; i++) addPageDots(gauges[i].screen, gauges[i].dots, PAGE_COUNT);
@@ -693,6 +695,19 @@ static bool reading(uint8_t p, const Telemetry &t, float &v) {
     case PAGE_SPEED: v = t.speedMph, at = t.speedAt; break;
     case PAGE_TACH: v = t.rpm, at = t.rpmAt; break;
     case PAGE_FUEL: v = t.fuelPct, at = t.fuelAt; break;
+    case PAGE_ECONOMY: {   // miles per gallon, eased so it doesn't leap about; blank when stopped or no fuel reading
+      static float eased = NAN;
+      const uint32_t stamp = t.fuelRateAt && t.speedAt ? (t.fuelRateAt < t.speedAt ? t.fuelRateAt : t.speedAt) : 0;
+      if (!fresh(stamp) || t.speedMph < 2.0f) {
+        eased = NAN;
+        return false;
+      }
+      const float gph = t.fuelLph / 3.785f;
+      const float raw = gph > 0.05f ? fminf(50.0f, t.speedMph / gph) : 50.0f;   // coasting on a closed throttle burns nothing
+      eased = isnan(eased) ? raw : eased + (raw - eased) * 0.06f;
+      v = eased;
+      return true;
+    }
     case PAGE_ALTITUDE:   // the car updates its barometer slowly, so a reading is held rather than going stale
       v = t.altitudeFt;
       at = t.altitudeAt && (t.state == ObdState::Live || t.state == ObdState::Simulated) ? millis() : 0;
@@ -755,6 +770,12 @@ void ui_update(const Telemetry &t) {
     else {
       if (!isnan(extreme[page]))
         snprintf(held, sizeof held, "L %d R %d  DN %d UP %d", (int)lroundf(-extremeLow[page]), (int)lroundf(extreme[page]), (int)lroundf(-face.pitchLow), (int)lroundf(face.pitchHigh));
+      status = held;
+    }
+  } else if (page == PAGE_ECONOMY && live) {
+    if (!t.economyOk) status = "Car doesn't report fuel use";
+    else if (fresh(t.fuelRateAt)) {
+      snprintf(held, sizeof held, "%.1f gal/h", t.fuelLph / 3.785f);
       status = held;
     }
   } else if (g.cfg->track && !isnan(extreme[page]) && (live || page == PAGE_VOLTS)) {
