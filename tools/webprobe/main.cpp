@@ -14,9 +14,11 @@
 
 #include "settings.h"
 #include "imu.h"
+#include "ui.h"
 #include "webconfig.h"
 
 void imu_requestLevel() {}   // no sensor on the bench build
+void ui_resetPeaks(uint16_t) {}   // no gauges either
 
 namespace {
 

@@ -680,8 +680,11 @@ static bool reading(uint8_t p, const Telemetry &t, float &v) {
   return fresh(at);
 }
 
+static void applyResets();   // below, with ui_resetPeaks
+
 void ui_update(const Telemetry &t) {
   const Settings &s = settings();
+  applyResets();
   showUpdate(webconfig_updatePercent());
   // Wi-Fi went off by itself (web page button or idle timeout): back to the gauges.
   if (page == PAGE_SETTINGS && !webconfig_active()) showPage(returnPage);
@@ -799,14 +802,38 @@ void ui_brightness(int dir) {
   toastUntil = millis() + 3000;
 }
 
+// The web task only leaves a note of what to clear; ui_update does it, on the task that owns the readings.
+static volatile uint16_t resetRequest = 0;
+
+void ui_resetPeaks(uint16_t gaugeMask) {
+  __atomic_fetch_or(&resetRequest, gaugeMask, __ATOMIC_SEQ_CST);
+}
+
+static void clearExtremes(uint8_t p) {
+  extreme[p] = extremeLow[p] = NAN;
+  if (p == PAGE_TILT) face.pitchHigh = face.pitchLow = NAN;
+}
+
+// Clears what ui_resetPeaks asked for, and saves if a saved peak was among it.
+static void applyResets() {
+  const uint16_t mask = __atomic_exchange_n(&resetRequest, (uint16_t)0, __ATOMIC_SEQ_CST);
+  if (!mask) return;
+  bool saved = false;
+  for (uint8_t i = 0; i < PAGE_COUNT; i++) {
+    if (!(mask >> i & 1) || !gauges[i].cfg->track) continue;
+    clearExtremes(i);
+    saved |= gauges[i].cfg->track == 1;
+  }
+  if (saved) savePeaks();
+}
+
 // A press held on a gauge that tracks a peak or low starts that reading over;
 // on the roll and pitch gauges it clears both ends.
 void ui_hold() {
   if (page == PAGE_SETTINGS) return;
   const int8_t dir = gauges[page].cfg->track;
   if (!dir) return;
-  extreme[page] = extremeLow[page] = NAN;
-  if (page == PAGE_TILT) face.pitchHigh = face.pitchLow = NAN;
+  clearExtremes(page);
   if (dir == 1) savePeaks();
   toastText = dir == 2 ? "Maximums reset" : dir > 0 ? "Peak reset" : "Low reset";
   toastColor = WHITE;

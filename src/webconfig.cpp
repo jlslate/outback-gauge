@@ -10,6 +10,7 @@
 #include "config.h"
 #include "imu.h"
 #include "settings.h"
+#include "ui.h"
 #include "webpage.h"
 
 namespace {
@@ -95,6 +96,15 @@ void handleDefaults() {
 void handleLevel() {
   keepAlive();
   imu_requestLevel();
+  server.send(200, "text/html", webpage_render(settings(), nullptr));
+}
+
+// Clears one gauge's peak, low or maximums (g=<page number>) or all of them (g=all).
+void handleResetPeaks() {
+  keepAlive();
+  const String g = server.arg("g");
+  const uint16_t mask = g == "all" ? 0xFFFF : (uint16_t)(1u << constrain(g.toInt(), 0, 15));
+  ui_resetPeaks(mask);
   server.send(200, "text/html", webpage_render(settings(), nullptr));
 }
 
@@ -185,6 +195,7 @@ void task(void *) {
     server.on("/save", HTTP_POST, handleSave);
     server.on("/defaults", HTTP_POST, handleDefaults);
     server.on("/level", HTTP_POST, handleLevel);
+    server.on("/resetpeaks", HTTP_POST, handleResetPeaks);
     server.on("/update", HTTP_POST, handleUpdate, handleUpdateChunk);
     server.on("/reboot", HTTP_POST, handleReboot);
     server.on("/stop", HTTP_POST, handleStop);
