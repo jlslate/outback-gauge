@@ -628,7 +628,7 @@ static constexpr uint8_t NO_PAGE = 255;
 static uint8_t pageBeforeWarning = NO_PAGE, warningPage = NO_PAGE;
 // A new warning holds the rotation for this long (when the setting says to stay), then it carries on
 // even if the gauge is still warning, so a reading that never clears can't freeze the screen.
-static constexpr uint32_t WARN_HOLD_MS = 30000;
+static constexpr uint32_t WARN_HOLD_MS = 10000;
 static uint32_t warnHoldUntil = 0;
 
 static bool checkAlarms(const Telemetry &t, const Settings &s) {
